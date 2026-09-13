@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 70">
+  <!-- Elegant Pink Heart Icon -->
+  <path d="M25 25 C30 20, 45 20, 50 35 C55 20, 70 20, 75 25 C80 30, 80 45, 50 65 C20 45, 20 30, 25 25" 
+        fill="#ff4d6d" />
+  <circle cx="45" cy="40" r="10" fill="none" stroke="white" stroke-width="1.5" opacity="0.6" />
+  <circle cx="55" cy="42" r="10" fill="none" stroke="white" stroke-width="1.5" opacity="0.6" />
+  
+  <!-- Text: Dream (Red) Wedding (Yellow/Gold) -->
+  <text x="85" y="50" font-family="'Palatino Linotype', 'Book Antiqua', Palatino, serif" font-size="32" font-weight="bold">
+    <tspan fill="#ff4b2b">Dream</tspan><tspan fill="#ffb037">Wedding</tspan>
+  </text>
+  
+  <!-- Multi-color line -->
+  <rect x="85" y="58" width="90" height="2" fill="#ff4b2b" rx="1" />
+  <rect x="175" y="58" width="120" height="2" fill="#ffb037" rx="1" />
+</svg>

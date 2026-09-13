@@ -1,0 +1,698 @@
+/**
+ * Dream Wedding - Gallery Page Styles
+ */
+
+/* FROM THE BLOG */
+.blog-section {
+  padding: 60px 0;
+  background: white;
+}
+
+.blog-section .section-header {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 40px;
+}
+
+.blog-section .section-header h2 {
+  color: #333333;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 12px;
+}
+
+.blog-section .section-header h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 3px;
+  background: #d4af37;
+  border-radius: 2px;
+}
+
+.section-header {
+  text-align: center;
+  background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+  padding: 30px 20px;
+  border-radius: 0;
+  margin-top: 45px;
+  margin-bottom: 50px;
+  box-shadow: 0 4px 18px rgba(184, 134, 11, 0.25);
+  width: 100%;
+}
+
+.section-header h2 {
+  color: #ffffff;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.section-header p {
+  color: #fdf6e2;
+  font-size: 1rem;
+  margin-top: 8px;
+  margin-bottom: 0;
+  letter-spacing: 0.5px;
+}
+
+.blog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.blog-card {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 3px 20px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.3s ease;
+}
+
+.blog-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.blog-card-image {
+  position: relative;
+  min-height: 250px;
+}
+
+.blog-card-image img {
+  width: 100%;
+  height: 100%;
+  min-height: 250px;
+  object-fit: cover;
+  object-position: center 18%;
+}
+
+.blog-date-badge {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #c0392b;
+  color: white;
+  padding: 12px 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 1px;
+}
+
+.blog-card-content {
+  padding: 25px 30px;
+}
+
+.blog-author {
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.blog-card-content h3 {
+  color: #333;
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.blog-desc {
+  color: #555;
+  line-height: 1.7;
+  font-size: 0.95rem;
+  margin-bottom: 15px;
+}
+
+/* What Our BRIDES Say */
+.brides-section {
+  padding: 0 0 60px;
+  background: white;
+}
+
+.brides-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.bride-card {
+  text-align: center;
+  background: #fafafa;
+  padding: 40px 30px;
+  border-radius: 10px;
+  border: 2px solid #d4af37;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.06);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.bride-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(212, 175, 55, 0.2);
+}
+
+.bride-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 25px;
+}
+
+.bride-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bride-quote {
+  color: #555;
+  font-style: italic;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.bride-name {
+  font-weight: 600;
+  color: #333;
+}
+
+/* What Our GROOMS Say */
+.grooms-section {
+  padding: 0 0 60px;
+  background: #fafafa;
+}
+
+.grooms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.groom-card {
+  text-align: center;
+  background: white;
+  padding: 40px 30px;
+  border-radius: 10px;
+  border: 2px solid #d4af37;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.06);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.groom-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(212, 175, 55, 0.2);
+}
+
+.groom-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 25px;
+}
+
+.groom-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.groom-quote {
+  color: #555;
+  font-style: italic;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.groom-name {
+  font-weight: 600;
+  color: #333;
+}
+
+/* Our Wedding Couples */
+.gallery-section {
+  padding: 0 0 60px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
+}
+
+.gallery-item {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+}
+/* Fallback for aspect-ratio: padding creates square */
+.gallery-item::before {
+  content: '';
+  display: block;
+  padding-top: 100%;
+}
+.gallery-item img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.gallery-item:hover img {
+  transform: scale(1.1);
+}
+
+.gallery-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  color: white;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gallery-item:hover .gallery-overlay {
+  opacity: 1;
+}
+
+/* =============================================
+   COUPLE HOVER POPUP
+   ============================================= */
+
+.couple-hover-popup {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, rgba(20, 15, 8, 0.95), rgba(45, 30, 15, 0.93));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 16px 18px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease;
+  opacity: 0;
+  z-index: 5;
+  border-top: 3px solid #d4af37;
+  max-height: 88%;
+  overflow-y: auto;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.gallery-item:hover .couple-hover-popup {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.gallery-item:hover .gallery-overlay {
+  opacity: 0;
+}
+
+.couple-hover-popup h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #d4af37;
+  margin: 0 0 6px;
+  letter-spacing: 0.3px;
+}
+
+.couple-hover-popup .fav-function {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f5d98a;
+  margin: 0 0 8px;
+}
+
+.couple-hover-popup p {
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #e8dcc8;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Feedback Section */
+.gallery-feedback {
+  padding: 0 0 60px;
+  background: #fafafa;
+}
+
+.gallery-feedback .section-title {
+  text-align: center;
+  background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+  padding: 20px 25px;
+  border-radius: 10px;
+  margin-bottom: 40px;
+  box-shadow: 0 6px 20px rgba(184, 134, 11, 0.25);
+  width: 100%;
+}
+
+.gallery-feedback .section-title h2 {
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.gallery-feedback .section-title h2::after {
+  display: none;
+}
+
+.gallery-feedback .section-title p {
+  color: #fdf6e2;
+  font-size: 0.95rem;
+  margin-top: 6px;
+  margin-bottom: 0;
+  letter-spacing: 0.5px;
+}
+
+.review-form {
+  max-width: 700px;
+  margin: 0 auto 50px;
+  background: white;
+  padding: 40px;
+  border-radius: 10px;
+  border: 2px solid #d4af37;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.08);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.form-message {
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.reviews-list {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.review-item {
+  background: white;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-couple-img {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.review-couple-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.review-item-body {
+  padding: 25px;
+}
+
+.review-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.review-item .review-text {
+  margin-bottom: 10px;
+}
+
+.review-author {
+  font-weight: 600;
+  color: #333;
+}
+
+.review-rating {
+  color: #b8860b;
+}
+
+.review-text {
+  color: #555;
+  line-height: 1.7;
+}
+
+@media (max-width: 992px) {
+  .blog-card {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-date-badge {
+    top: 20px;
+    right: 20px;
+    transform: none;
+    writing-mode: horizontal-tb;
+    padding: 8px 12px;
+  }
+
+  .brides-grid,
+  .grooms-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .gallery-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .review-form {
+    padding: 25px 20px;
+  }
+
+  .section-header h2 {
+    font-size: 1.15rem;
+    padding: 10px 24px;
+    letter-spacing: 1.5px;
+  }
+
+  .blog-card-content h3 {
+    font-size: 1.1rem;
+  }
+}
+
+/* =============================================
+   READ FULL STORY BUTTON
+   ============================================= */
+
+.blog-read-story-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 14px;
+  padding: 9px 22px;
+  background: linear-gradient(135deg, #d4af37, #b8860b);
+  color: #fff;
+  border: none;
+  border-radius: 25px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 12px rgba(212, 175, 55, 0.3);
+}
+
+.blog-read-story-btn:hover {
+  background: linear-gradient(135deg, #b8860b, #8b6914);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+}
+
+/* =============================================
+   STORY MODAL
+   ============================================= */
+
+.story-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeInOverlay 0.3s ease;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.story-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUpModal 0.35s ease;
+}
+
+@keyframes slideUpModal {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.story-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.story-modal-close:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.story-modal-img-wrap {
+  position: relative;
+  width: 100%;
+  max-height: 440px;
+  background: #14100b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 16px 16px 0 0;
+}
+
+.story-modal-img {
+  max-width: 100%;
+  max-height: 440px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.story-modal-header-info {
+  padding: 22px 30px 14px;
+  border-bottom: 1px solid #f0e6d2;
+}
+
+.story-modal-header-info .story-date-tag {
+  background: #d4af37;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 16px;
+  border-radius: 20px;
+  display: inline-block;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+.story-modal-header-info h2 {
+  color: #222;
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.story-modal-content {
+  padding: 24px 30px 34px;
+}
+
+.story-modal-content p {
+  color: #444;
+  font-size: 0.94rem;
+  line-height: 1.8;
+  margin-bottom: 16px;
+}
+
+.story-modal-content p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .story-modal-box {
+    max-height: 92vh;
+    border-radius: 12px;
+  }
+
+  .story-modal-img-wrap {
+    max-height: 280px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .story-modal-img {
+    max-height: 280px;
+  }
+
+  .story-modal-header-info {
+    padding: 18px 20px 10px;
+  }
+
+  .story-modal-header-info h2 {
+    font-size: 1.25rem;
+  }
+
+  .story-modal-content {
+    padding: 18px 20px 24px;
+  }
+}

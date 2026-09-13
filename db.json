@@ -1,0 +1,86 @@
+{
+  "users": [
+    {
+      "name": "Dimpal Narkhede",
+      "email": "d@gmail.com",
+      "phone": "9638521478",
+      "password": "123456",
+      "id": "I7SNrkgdzM8"
+    }
+  ],
+  "bookings": [
+    {
+      "name": "Dimpal Narkhede",
+      "email": "d@gmail.com",
+      "phone": "9638521478",
+      "service": "Cake Arrangement",
+      "category": "ring-ceremony",
+      "customSummary": "Event: Ring Ceremony | Venue: Indoor | Guests: 162",
+      "eventType": "Ring Ceremony",
+      "venue": "Indoor Banquet Hall",
+      "budget": "Under 1 Lakh",
+      "address": "ahemdabad",
+      "date": "2026-09-12",
+      "guests": "162",
+      "notes": "Event: Ring Ceremony | Venue: Indoor | Guests: 162",
+      "createdAt": "2026-09-08T06:58:55.459Z",
+      "id": "0Pisd1Bq0KM",
+      "paymentStatus": "Paid",
+      "paidAmount": "₹75,000",
+      "paymentMethod": "UPI",
+      "transactionId": "TXN_DW52403504",
+      "paidAt": "2026-09-08T07:26:45.010Z"
+    },
+    {
+      "name": "Dimpal Narkhede",
+      "email": "d@gmail.com",
+      "phone": "9638521478",
+      "service": "Custom Package",
+      "bookingType": "package",
+      "category": "package",
+      "customSummary": "Package: Custom Package (Custom Quote) | Event: Wedding & Reception | Guests: 300 | Venue: Indoor Banquet Hall",
+      "eventType": "Wedding & Reception",
+      "venue": "Indoor Banquet Hall",
+      "address": "ahemdabad",
+      "budget": "Custom Quote",
+      "date": "2026-09-30",
+      "guests": "300",
+      "notes": "Package: Custom Package (Custom Quote) | Event: Wedding & Reception | Guests: 300 | Venue: Indoor Banquet Hall",
+      "createdAt": "2026-09-08T06:59:45.240Z",
+      "id": "v9OOOLRiW68",
+      "paymentStatus": "Paid",
+      "paidAmount": "₹25,000",
+      "paymentMethod": "UPI",
+      "transactionId": "TXN_DW58473418",
+      "paidAt": "2026-09-08T09:07:54.922Z"
+    }
+  ],
+  "contacts": [],
+  "reviews": [],
+  "vendorTasks": [
+    {
+      "id": "vt_demo_1",
+      "vendorId": "vnd_photo_1",
+      "vendorName": "Royal Lens Studios",
+      "vendorEmail": "arjun@royallens.com",
+      "customerName": "Dimpal Narkhede",
+      "customerEmail": "d@gmail.com",
+      "customerPhone": "9638521478",
+      "service": "Photography",
+      "eventDate": "2026-09-23",
+      "eventTime": "18:00",
+      "venue": "Indoor Banquet Hall, Ahmedabad",
+      "guests": "162",
+      "requirements": "Ring ceremony stage shoot, candid couple portraits, 4K reel within 48 hours.",
+      "status": "Pending",
+      "vendorResponse": null,
+      "vendorResponseNote": "",
+      "adminDecision": null,
+      "assignmentHistory": [],
+      "createdAt": "2026-09-12T10:00:00.000Z",
+      "respondedAt": null,
+      "decidedAt": null
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}

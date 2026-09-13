@@ -1,0 +1,158 @@
+/**
+ * Dream Wedding - Packages Page Styles
+ */
+
+.packages-section {
+  padding: 60px 0;
+}
+
+.packages-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  margin-bottom: 60px;
+}
+
+.package-box {
+  background: white;
+  border: 2px solid #eee;
+  border-radius: 15px;
+  padding: 40px 30px;
+  text-align: center;
+  position: relative;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.package-box:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+}
+
+.package-box.featured {
+  border-color: #b8860b;
+  background: linear-gradient(180deg, rgba(184, 134, 11, 0.08) 0%, white 30%);
+  transform: scale(1.02);
+}
+
+.package-box.featured:hover {
+  transform: scale(1.02) translateY(-8px);
+}
+
+.featured-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #b8860b, #daa520);
+  color: white;
+  padding: 6px 20px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.package-header {
+  margin-bottom: 30px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid #eee;
+}
+
+.package-header h2 {
+  color: #333;
+  font-size: 1.8rem;
+  margin-bottom: 5px;
+}
+
+.package-desc {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 15px;
+}
+
+.package-price {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #b8860b;
+}
+
+.package-note {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 5px;
+}
+
+.package-features {
+  text-align: left;
+  margin-bottom: 30px;
+  padding-left: 0;
+}
+
+.package-features li {
+  margin-bottom: 12px;
+  color: #555;
+  position: relative;
+  padding-left: 20px;
+}
+
+.package-features li::before {
+  content: '\2022';
+  color: #b8860b;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  top: 0.15em; /* align checkmark with the first text line */
+  width: 28px;
+  text-align: center;
+  transform: none;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.custom-package {
+  text-align: center;
+  padding: 50px;
+  background: #fafafa;
+  border-radius: 15px;
+}
+
+.custom-package h2 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.6rem;
+}
+
+.custom-package p {
+  color: #555;
+  margin-bottom: 25px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 992px) {
+  .packages-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .package-box.featured {
+    transform: none;
+  }
+
+  .package-box.featured:hover {
+    transform: translateY(-8px);
+  }
+}
+
+@media (max-width: 768px) {
+  .custom-package {
+    padding: 30px 20px;
+  }
+
+  .package-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .package-price {
+    font-size: 2rem;
+  }
+}

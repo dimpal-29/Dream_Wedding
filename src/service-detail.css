@@ -1,0 +1,257 @@
+/**
+ * Dream Wedding - Service Detail Page
+ * Sub-services grid + booking modal
+ */
+
+.service-breadcrumb-section {
+  padding: 18px 0 10px;
+}
+
+.service-breadcrumb-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.breadcrumb a {
+  color: #333;
+}
+
+.crumb-sep {
+  color: #999;
+}
+
+.service-back-btn {
+  white-space: nowrap;
+}
+
+.service-detail-section {
+  padding: 20px 0 70px;
+}
+
+.service-detail-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+
+.service-detail-search-wrapper {
+  width: 100%;
+  max-width: 420px;
+}
+
+.service-detail-search-wrapper input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #e6dccb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.service-detail-search-wrapper input:focus {
+  border-color: #333;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+}
+
+.service-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 24px;
+}
+
+.sub-service-card {
+  background: #fdfdfd;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.sub-service-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
+}
+
+.sub-service-img {
+  height: 280px;
+  overflow: hidden;
+  position: relative;
+}
+
+.sub-service-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.sub-service-card:hover .sub-service-img img {
+  transform: scale(1.06);
+}
+
+.sub-service-content {
+  padding: 14px 14px 12px;
+  background: #fdfdfd;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sub-service-title {
+  color: #333;
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: 0.01em;
+}
+
+.sub-service-desc {
+  color: #555;
+  font-size: 0.93rem;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+.sub-service-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sub-service-price {
+  font-weight: 800;
+  color: #333;
+  white-space: nowrap;
+}
+
+.sub-service-rating {
+  color: #555;
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.sub-service-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sub-service-actions .btn {
+  padding: 10px 16px;
+  font-size: 0.95rem;
+}
+
+/* Booking Modal */
+.booking-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 2000;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+
+.booking-modal.show {
+  display: flex;
+}
+
+.booking-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.booking-modal-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  margin: auto; /* Centers horizontally and creates spacing */
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+  padding: 18px 18px 16px;
+  z-index: 1;
+  animation: modalPop 0.22s ease;
+}
+
+@keyframes modalPop {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.booking-modal-close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  border: none;
+  background: transparent;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #666;
+}
+
+.booking-modal-form h2 {
+  margin-bottom: 16px;
+  color: #333;
+  font-size: 1.35rem;
+}
+
+.booking-modal-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.booking-modal-cancel {
+  background: transparent;
+}
+
+.booking-modal-note {
+  margin-top: 12px;
+  color: #666;
+  font-size: 0.92rem;
+}
+
+.booking-modal-note a {
+  color: #333;
+}
+
+/* Small screens */
+@media (max-width: 768px) {
+  .service-detail-toolbar {
+    justify-content: stretch;
+  }
+
+  .service-detail-search-wrapper {
+    max-width: 100%;
+  }
+
+  .sub-service-img {
+    height: 240px;
+  }
+}
