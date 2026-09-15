@@ -448,27 +448,6 @@ function Gallery() {
             <div id="reviewMessage" className="form-message">{message}</div>
             <button type="submit" className="btn btn-primary">Submit Review</button>
           </form>
-          <div id="reviewsList" className="reviews-list">
-            {reviews.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#888' }}>No reviews yet. Be the first to share your experience!</p>
-            ) : (
-              reviews.map((review, index) => (
-                <div key={review.id || index} className="review-item">
-                  <div className="review-couple-img">
-                    <img src={review.coupleImg} alt={review.name} />
-                  </div>
-                  <div className="review-item-body">
-                    <div className="review-item-header">
-                      <span className="review-author">{review.name}</span>
-                      <span className="review-rating">{renderStars(review.rating)}</span>
-                    </div>
-                    <p className="review-text">{review.text}</p>
-                    <small style={{ color: '#888' }}>{review.date}</small>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </div>
       </section>
 
