@@ -211,17 +211,17 @@ if (typeof window !== 'undefined') {
             return {
               ...seed,   // base seed fields (includes password, businessName, etc.)
               ...v,      // existing fields override (preserves any custom changes)
-              password:     v.password     || seed.password,
+              password: v.password || seed.password,
               businessName: v.businessName || seed.businessName || v.name,
-              ownerName:    v.ownerName    || seed.ownerName    || v.contactPerson,
-              location:     v.location     || seed.location     || v.city,
+              ownerName: v.ownerName || seed.ownerName || v.contactPerson,
+              location: v.location || seed.location || v.city,
             }
           }
           // Non-seed vendor (custom registered): keep as-is, just ensure businessName
           return {
             ...v,
             businessName: v.businessName || v.name,
-            ownerName:    v.ownerName    || v.contactPerson,
+            ownerName: v.ownerName || v.contactPerson,
           }
         })
         saveLocalCollection('vendors', merged)
@@ -444,19 +444,20 @@ export const usersApi = {
       ...user,
       id: user.id || 'usr_' + Date.now() + Math.random().toString(36).substring(2, 6)
     }
-    let saved = newUser
-    try {
-      saved = await apiCall('/users', {
-        method: 'POST',
-        body: JSON.stringify(newUser),
-      })
-    } catch (err) {
-      console.error('API Error [POST /users] - saving to local cache fallback:', err)
-    }
-    const result = saved || newUser
+
+    const saved = await apiCall('/users', {
+      method: 'POST',
+      body: JSON.stringify(newUser),
+    })
+
     const list = getLocalCollection('users')
-    saveLocalCollection('users', [...list.filter(u => String(u.id) !== String(result.id)), result])
-    return result
+
+    saveLocalCollection(
+      'users',
+      [...list.filter(u => String(u.id) !== String(saved.id)), saved]
+    )
+
+    return saved
   },
   update: async (id, user) => {
     const updated = { ...user, id }

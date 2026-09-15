@@ -450,27 +450,6 @@ function Gallery() {
           </form>
         </div>
       </section>
-
-      {/* Story Modal */}
-      {activeStory && (
-        <div className="story-modal-overlay" onClick={() => setActiveStory(null)}>
-          <div className="story-modal-box" onClick={(e) => e.stopPropagation()}>
-            <button className="story-modal-close" onClick={() => setActiveStory(null)}>&times;</button>
-            <div className="story-modal-img-wrap">
-              <img src={activeStory.image} alt={activeStory.title} className="story-modal-img" />
-            </div>
-            <div className="story-modal-header-info">
-              <span className="story-date-tag">{activeStory.date}</span>
-              <h2>{activeStory.title}</h2>
-            </div>
-            <div className="story-modal-content">
-              {activeStory.story.split('\n\n').map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }
