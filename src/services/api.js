@@ -1,10 +1,11 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:3000'
+const API_BASE_URL = 'https://dream-wedding-zasb.onrender.com';
+const API_TIMEOUT = 10000; // 10 seconds for Render free-tier cold starts
 
 export const jsonServer = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 800,
+  timeout: API_TIMEOUT,
   headers: { 'Content-Type': 'application/json' }
 })
 
@@ -384,11 +385,11 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Fast API call helper with non-blocking 500ms timeout
+// Reliable API call helper with 10s timeout and detailed error messages
 async function apiCall(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 500)
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT)
 
   const config = {
     headers: {
@@ -403,86 +404,111 @@ async function apiCall(endpoint, options = {}) {
     const response = await fetch(url, config)
     clearTimeout(timeoutId)
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      const errorText = await response.text().catch(() => '')
+      throw new Error(`API Error [${options.method || 'GET'} ${endpoint}]: HTTP ${response.status} ${response.statusText}${errorText ? ' - ' + errorText : ''}`)
     }
-    return await response.json()
+    const text = await response.text()
+    return text ? JSON.parse(text) : {}
   } catch (error) {
     clearTimeout(timeoutId)
     throw error
   }
 }
 
-// Users API with INSTANT zero-delay response & background sync
+// Users API: Render API as primary source of truth, localStorage as resilient cache/fallback
 export const usersApi = {
   getAll: async () => {
-    const local = getLocalCollection('users')
-    // Background sync without blocking UI
-    apiCall('/users').then(data => {
-      if (Array.isArray(data) && data.length > 0) saveLocalCollection('users', data)
-    }).catch(() => {})
-    return local
+    try {
+      const data = await apiCall('/users')
+      if (Array.isArray(data)) {
+        saveLocalCollection('users', data)
+        return data
+      }
+    } catch (err) {
+      console.error('API Error [GET /users] - falling back to local storage cache:', err)
+    }
+    return getLocalCollection('users')
   },
   getById: async (id) => {
-    const list = getLocalCollection('users')
-    const found = list.find(u => String(u.id) === String(id))
-    if (found) return found
     try {
-      return await apiCall(`/users/${id}`)
-    } catch {
-      return found || null
+      const data = await apiCall(`/users/${id}`)
+      if (data && data.id) return data
+    } catch (err) {
+      console.error(`API Error [GET /users/${id}] - falling back to local storage cache:`, err)
     }
+    const list = getLocalCollection('users')
+    return list.find(u => String(u.id) === String(id)) || null
   },
   create: async (user) => {
     const newUser = {
       ...user,
       id: user.id || 'usr_' + Date.now() + Math.random().toString(36).substring(2, 6)
     }
+    let saved = newUser
+    try {
+      saved = await apiCall('/users', {
+        method: 'POST',
+        body: JSON.stringify(newUser),
+      })
+    } catch (err) {
+      console.error('API Error [POST /users] - saving to local cache fallback:', err)
+    }
+    const result = saved || newUser
     const list = getLocalCollection('users')
-    saveLocalCollection('users', [...list.filter(u => u.id !== newUser.id), newUser])
-    // Non-blocking background sync
-    apiCall('/users', {
-      method: 'POST',
-      body: JSON.stringify(newUser),
-    }).catch(() => {})
-    return newUser
+    saveLocalCollection('users', [...list.filter(u => String(u.id) !== String(result.id)), result])
+    return result
   },
   update: async (id, user) => {
     const updated = { ...user, id }
+    let saved = updated
+    try {
+      saved = await apiCall(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updated),
+      })
+    } catch (err) {
+      console.error(`API Error [PUT /users/${id}] - updating local cache fallback:`, err)
+    }
+    const result = saved || updated
     const list = getLocalCollection('users')
-    saveLocalCollection('users', list.map(u => String(u.id) === String(id) ? updated : u))
-    apiCall(`/users/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updated),
-    }).catch(() => {})
-    return updated
+    saveLocalCollection('users', list.map(u => String(u.id) === String(id) ? result : u))
+    return result
   },
   delete: async (id) => {
+    try {
+      await apiCall(`/users/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error(`API Error [DELETE /users/${id}] - removing from local cache fallback:`, err)
+    }
     const list = getLocalCollection('users')
     saveLocalCollection('users', list.filter(u => String(u.id) !== String(id)))
-    apiCall(`/users/${id}`, { method: 'DELETE' }).catch(() => {})
     return { success: true }
   },
 }
 
-// Bookings API with INSTANT zero-delay response & background sync
+// Bookings API: Render API as primary source of truth, localStorage as resilient cache/fallback
 export const bookingsApi = {
   getAll: async () => {
-    const local = getLocalCollection('bookings')
-    // Background sync without blocking UI
-    apiCall('/bookings').then(data => {
-      if (Array.isArray(data) && data.length > 0) saveLocalCollection('bookings', data)
-    }).catch(() => {})
-    return local
+    try {
+      const data = await apiCall('/bookings')
+      if (Array.isArray(data)) {
+        saveLocalCollection('bookings', data)
+        return data
+      }
+    } catch (err) {
+      console.error('API Error [GET /bookings] - falling back to local storage cache:', err)
+    }
+    return getLocalCollection('bookings')
   },
   getById: async (id) => {
-    const list = getLocalCollection('bookings')
-    const found = list.find(b => String(b.id) === String(id))
-    if (found) return found
     try {
-      return await apiCall(`/bookings/${id}`)
-    } catch {
-      return found || null
+      const data = await apiCall(`/bookings/${id}`)
+      if (data && data.id) return data
+    } catch (err) {
+      console.error(`API Error [GET /bookings/${id}] - falling back to local storage cache:`, err)
     }
+    const list = getLocalCollection('bookings')
+    return list.find(b => String(b.id) === String(id)) || null
   },
   create: async (booking) => {
     const newBooking = {
@@ -490,79 +516,116 @@ export const bookingsApi = {
       id: booking.id || 'bk_' + Date.now() + Math.random().toString(36).substring(2, 6),
       createdAt: booking.createdAt || new Date().toISOString()
     }
+    let saved = newBooking
+    try {
+      saved = await apiCall('/bookings', {
+        method: 'POST',
+        body: JSON.stringify(newBooking),
+      })
+    } catch (err) {
+      console.error('API Error [POST /bookings] - saving to local cache fallback:', err)
+    }
+    const result = saved || newBooking
     const list = getLocalCollection('bookings')
-    saveLocalCollection('bookings', [...list.filter(b => b.id !== newBooking.id), newBooking])
-    apiCall('/bookings', {
-      method: 'POST',
-      body: JSON.stringify(newBooking),
-    }).catch(() => {})
-    return newBooking
+    saveLocalCollection('bookings', [...list.filter(b => String(b.id) !== String(result.id)), result])
+    return result
   },
   update: async (id, booking) => {
     const updated = { ...booking, id }
+    let saved = updated
+    try {
+      saved = await apiCall(`/bookings/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updated),
+      })
+    } catch (err) {
+      console.error(`API Error [PUT /bookings/${id}] - updating local cache fallback:`, err)
+    }
+    const result = saved || updated
     const list = getLocalCollection('bookings')
-    saveLocalCollection('bookings', list.map(b => String(b.id) === String(id) ? updated : b))
-    apiCall(`/bookings/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updated),
-    }).catch(() => {})
-    return updated
+    saveLocalCollection('bookings', list.map(b => String(b.id) === String(id) ? result : b))
+    return result
   },
   delete: async (id) => {
+    try {
+      await apiCall(`/bookings/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error(`API Error [DELETE /bookings/${id}] - removing from local cache fallback:`, err)
+    }
     const list = getLocalCollection('bookings')
     saveLocalCollection('bookings', list.filter(b => String(b.id) !== String(id)))
-    apiCall(`/bookings/${id}`, { method: 'DELETE' }).catch(() => {})
     return { success: true }
   },
 }
 
-// Contacts API with INSTANT zero-delay response & background sync
+// Contacts API: Render API as primary source of truth, localStorage as resilient cache/fallback
 export const contactsApi = {
   getAll: async () => {
-    const local = getLocalCollection('contacts')
-    apiCall('/contacts').then(data => {
-      if (Array.isArray(data) && data.length > 0) saveLocalCollection('contacts', data)
-    }).catch(() => {})
-    return local
+    try {
+      const data = await apiCall('/contacts')
+      if (Array.isArray(data)) {
+        saveLocalCollection('contacts', data)
+        return data
+      }
+    } catch (err) {
+      console.error('API Error [GET /contacts] - falling back to local storage cache:', err)
+    }
+    return getLocalCollection('contacts')
   },
   getById: async (id) => {
-    const list = getLocalCollection('contacts')
-    const found = list.find(c => String(c.id) === String(id))
-    if (found) return found
     try {
-      return await apiCall(`/contacts/${id}`)
-    } catch {
-      return found || null
+      const data = await apiCall(`/contacts/${id}`)
+      if (data && data.id) return data
+    } catch (err) {
+      console.error(`API Error [GET /contacts/${id}] - falling back to local storage cache:`, err)
     }
+    const list = getLocalCollection('contacts')
+    return list.find(c => String(c.id) === String(id)) || null
   },
   create: async (contact) => {
     const newContact = {
       ...contact,
       id: contact.id || 'ct_' + Date.now() + Math.random().toString(36).substring(2, 6),
-      createdAt: new Date().toISOString()
+      createdAt: contact.createdAt || new Date().toISOString()
     }
+    let saved = newContact
+    try {
+      saved = await apiCall('/contacts', {
+        method: 'POST',
+        body: JSON.stringify(newContact),
+      })
+    } catch (err) {
+      console.error('API Error [POST /contacts] - saving to local cache fallback:', err)
+    }
+    const result = saved || newContact
     const list = getLocalCollection('contacts')
-    saveLocalCollection('contacts', [...list.filter(c => c.id !== newContact.id), newContact])
-    apiCall('/contacts', {
-      method: 'POST',
-      body: JSON.stringify(newContact),
-    }).catch(() => {})
-    return newContact
+    saveLocalCollection('contacts', [...list.filter(c => String(c.id) !== String(result.id)), result])
+    return result
   },
   update: async (id, contact) => {
     const updated = { ...contact, id }
+    let saved = updated
+    try {
+      saved = await apiCall(`/contacts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updated),
+      })
+    } catch (err) {
+      console.error(`API Error [PUT /contacts/${id}] - updating local cache fallback:`, err)
+    }
+    const result = saved || updated
     const list = getLocalCollection('contacts')
-    saveLocalCollection('contacts', list.map(c => String(c.id) === String(id) ? updated : c))
-    apiCall(`/contacts/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updated),
-    }).catch(() => {})
-    return updated
+    saveLocalCollection('contacts', list.map(c => String(c.id) === String(id) ? result : c))
+    return result
   },
   delete: async (id) => {
+    try {
+      await apiCall(`/contacts/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error(`API Error [DELETE /contacts/${id}] - removing from local cache fallback:`, err)
+    }
     const list = getLocalCollection('contacts')
     saveLocalCollection('contacts', list.filter(c => String(c.id) !== String(id)))
-    apiCall(`/contacts/${id}`, { method: 'DELETE' }).catch(() => {})
     return { success: true }
   },
 }
@@ -626,63 +689,99 @@ export const INITIAL_REVIEWS = [
   }
 ]
 
-// Reviews API with INSTANT zero-delay response & background sync
+// Reviews API: Render API as primary source of truth, localStorage as resilient cache/fallback
 export const reviewsApi = {
   getAll: async () => {
+    try {
+      const data = await apiCall('/reviews')
+      if (Array.isArray(data) && data.length > 0) {
+        saveLocalCollection('reviews', data)
+        return data
+      }
+      if (Array.isArray(data) && data.length === 0) {
+        const local = getLocalCollection('reviews', INITIAL_REVIEWS)
+        return local
+      }
+    } catch (err) {
+      console.error('API Error [GET /reviews] - falling back to local storage cache:', err)
+    }
     let local = getLocalCollection('reviews')
     if (!local || local.length === 0) {
       saveLocalCollection('reviews', INITIAL_REVIEWS)
       local = INITIAL_REVIEWS
     }
-    apiCall('/reviews').then(data => {
-      if (Array.isArray(data) && data.length > 0) saveLocalCollection('reviews', data)
-    }).catch(() => {})
     return local
   },
   getById: async (id) => {
-    const list = getLocalCollection('reviews')
-    const found = list.find(r => String(r.id) === String(id))
-    if (found) return found
     try {
-      return await apiCall(`/reviews/${id}`)
-    } catch {
-      return found || null
+      const data = await apiCall(`/reviews/${id}`)
+      if (data && data.id) return data
+    } catch (err) {
+      console.error(`API Error [GET /reviews/${id}] - falling back to local storage cache:`, err)
     }
+    const list = getLocalCollection('reviews', INITIAL_REVIEWS)
+    return list.find(r => String(r.id) === String(id)) || null
   },
   create: async (review) => {
     const newReview = {
       ...review,
-      id: review.id || 'rv_' + Date.now() + Math.random().toString(36).substring(2, 6)
+      id: review.id || 'rv_' + Date.now() + Math.random().toString(36).substring(2, 6),
+      createdAt: review.createdAt || new Date().toISOString()
     }
-    const list = getLocalCollection('reviews')
-    saveLocalCollection('reviews', [...list.filter(r => r.id !== newReview.id), newReview])
-    apiCall('/reviews', {
-      method: 'POST',
-      body: JSON.stringify(newReview),
-    }).catch(() => {})
-    return newReview
+    let saved = newReview
+    try {
+      saved = await apiCall('/reviews', {
+        method: 'POST',
+        body: JSON.stringify(newReview),
+      })
+    } catch (err) {
+      console.error('API Error [POST /reviews] - saving to local cache fallback:', err)
+    }
+    const result = saved || newReview
+    const list = getLocalCollection('reviews', INITIAL_REVIEWS)
+    saveLocalCollection('reviews', [result, ...list.filter(r => String(r.id) !== String(result.id))])
+    return result
   },
   update: async (id, review) => {
     const updated = { ...review, id }
-    const list = getLocalCollection('reviews')
-    saveLocalCollection('reviews', list.map(r => String(r.id) === String(id) ? updated : r))
-    apiCall(`/reviews/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updated),
-    }).catch(() => {})
-    return updated
+    let saved = updated
+    try {
+      saved = await apiCall(`/reviews/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updated),
+      })
+    } catch (err) {
+      console.error(`API Error [PUT /reviews/${id}] - updating local cache fallback:`, err)
+    }
+    const result = saved || updated
+    const list = getLocalCollection('reviews', INITIAL_REVIEWS)
+    saveLocalCollection('reviews', list.map(r => String(r.id) === String(id) ? result : r))
+    return result
   },
   delete: async (id) => {
-    const list = getLocalCollection('reviews')
+    try {
+      await apiCall(`/reviews/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error(`API Error [DELETE /reviews/${id}] - removing from local cache fallback:`, err)
+    }
+    const list = getLocalCollection('reviews', INITIAL_REVIEWS)
     saveLocalCollection('reviews', list.filter(r => String(r.id) !== String(id)))
-    apiCall(`/reviews/${id}`, { method: 'DELETE' }).catch(() => {})
     return { success: true }
   },
 }
 
-// Vendors API with zero-delay local storage sync
+// Vendors API: Render API (/vendors) as primary source of truth, localStorage as resilient cache/fallback
 export const vendorsApi = {
   getAll: async () => {
+    try {
+      const data = await apiCall('/vendors')
+      if (Array.isArray(data) && data.length > 0) {
+        saveLocalCollection('vendors', data)
+        return data
+      }
+    } catch (err) {
+      console.error('API Error [GET /vendors] - falling back to local storage cache:', err)
+    }
     let local = getLocalCollection('vendors')
     if (!local || local.length === 0) {
       saveLocalCollection('vendors', INITIAL_VENDORS)
@@ -691,6 +790,12 @@ export const vendorsApi = {
     return local
   },
   getById: async (id) => {
+    try {
+      const data = await apiCall(`/vendors/${id}`)
+      if (data && data.id) return data
+    } catch (err) {
+      console.error(`API Error [GET /vendors/${id}] - checking local storage cache:`, err)
+    }
     const list = await vendorsApi.getAll()
     return list.find(v => String(v.id) === String(id)) || null
   },
@@ -699,22 +804,44 @@ export const vendorsApi = {
       ...vendor,
       id: vendor.id || 'vnd_' + Date.now() + Math.random().toString(36).substring(2, 6)
     }
-    const list = await vendorsApi.getAll()
-    const updated = [...list.filter(v => v.id !== newVendor.id), newVendor]
-    saveLocalCollection('vendors', updated)
-    return newVendor
+    let saved = newVendor
+    try {
+      saved = await apiCall('/vendors', {
+        method: 'POST',
+        body: JSON.stringify(newVendor),
+      })
+    } catch (err) {
+      console.error('API Error [POST /vendors] - saving to local storage fallback:', err)
+    }
+    const result = saved || newVendor
+    const list = getLocalCollection('vendors')
+    saveLocalCollection('vendors', [...list.filter(v => String(v.id) !== String(result.id)), result])
+    return result
   },
   update: async (id, vendor) => {
     const updated = { ...vendor, id }
-    const list = await vendorsApi.getAll()
-    const updatedList = list.map(v => String(v.id) === String(id) ? updated : v)
-    saveLocalCollection('vendors', updatedList)
-    return updated
+    let saved = updated
+    try {
+      saved = await apiCall(`/vendors/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updated),
+      })
+    } catch (err) {
+      console.error(`API Error [PUT /vendors/${id}] - updating local storage fallback:`, err)
+    }
+    const result = saved || updated
+    const list = getLocalCollection('vendors')
+    saveLocalCollection('vendors', list.map(v => String(v.id) === String(id) ? result : v))
+    return result
   },
   delete: async (id) => {
-    const list = await vendorsApi.getAll()
-    const filtered = list.filter(v => String(v.id) !== String(id))
-    saveLocalCollection('vendors', filtered)
+    try {
+      await apiCall(`/vendors/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error(`API Error [DELETE /vendors/${id}] - removing from local storage fallback:`, err)
+    }
+    const list = getLocalCollection('vendors')
+    saveLocalCollection('vendors', list.filter(v => String(v.id) !== String(id)))
     return { success: true }
   }
 }
@@ -756,28 +883,34 @@ if (typeof window !== 'undefined' && !localStorage.getItem('dw_vendorTasks')) {
   saveLocalCollection('vendorTasks', INITIAL_VENDOR_TASKS)
 }
 
+// Vendor Tasks API: Render API (/vendorTasks) as primary source of truth, localStorage as resilient cache/fallback
 export const vendorTasksApi = {
   getAll: async () => {
+    try {
+      const data = await apiCall('/vendorTasks')
+      if (Array.isArray(data) && data.length > 0) {
+        saveLocalCollection('vendorTasks', data)
+        return data
+      }
+    } catch (err) {
+      console.error('API Error [GET /vendorTasks] - falling back to local storage cache:', err)
+    }
     let local = getLocalCollection('vendorTasks')
     if (!local || local.length === 0) {
       saveLocalCollection('vendorTasks', INITIAL_VENDOR_TASKS)
       local = INITIAL_VENDOR_TASKS
     }
-    jsonServer.get('/vendorTasks').then(({ data }) => {
-      if (Array.isArray(data) && data.length > 0) saveLocalCollection('vendorTasks', data)
-    }).catch(() => {})
     return local
   },
   getById: async (id) => {
-    const list = getLocalCollection('vendorTasks')
-    const found = list.find(t => String(t.id) === String(id))
-    if (found) return found
     try {
-      const { data } = await jsonServer.get(`/vendorTasks/${id}`)
-      return data
-    } catch {
-      return found || null
+      const data = await apiCall(`/vendorTasks/${id}`)
+      if (data && data.id) return data
+    } catch (err) {
+      console.error(`API Error [GET /vendorTasks/${id}] - checking local storage cache:`, err)
     }
+    const list = getLocalCollection('vendorTasks', INITIAL_VENDOR_TASKS)
+    return list.find(t => String(t.id) === String(id)) || null
   },
   getByVendorId: async (vendorId) => {
     const list = await vendorTasksApi.getAll()
@@ -789,22 +922,44 @@ export const vendorTasksApi = {
       id: task.id || 'vt_' + Date.now() + Math.random().toString(36).substring(2, 6),
       createdAt: task.createdAt || new Date().toISOString()
     }
-    const list = getLocalCollection('vendorTasks')
-    saveLocalCollection('vendorTasks', [...list.filter(t => t.id !== newTask.id), newTask])
-    jsonServer.post('/vendorTasks', newTask).catch(() => {})
-    return newTask
+    let saved = newTask
+    try {
+      saved = await apiCall('/vendorTasks', {
+        method: 'POST',
+        body: JSON.stringify(newTask),
+      })
+    } catch (err) {
+      console.error('API Error [POST /vendorTasks] - saving to local storage fallback:', err)
+    }
+    const result = saved || newTask
+    const list = getLocalCollection('vendorTasks', INITIAL_VENDOR_TASKS)
+    saveLocalCollection('vendorTasks', [...list.filter(t => String(t.id) !== String(result.id)), result])
+    return result
   },
   update: async (id, task) => {
     const updated = { ...task, id }
-    const list = getLocalCollection('vendorTasks')
-    saveLocalCollection('vendorTasks', list.map(t => String(t.id) === String(id) ? updated : t))
-    jsonServer.put(`/vendorTasks/${id}`, updated).catch(() => {})
-    return updated
+    let saved = updated
+    try {
+      saved = await apiCall(`/vendorTasks/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updated),
+      })
+    } catch (err) {
+      console.error(`API Error [PUT /vendorTasks/${id}] - updating local storage fallback:`, err)
+    }
+    const result = saved || updated
+    const list = getLocalCollection('vendorTasks', INITIAL_VENDOR_TASKS)
+    saveLocalCollection('vendorTasks', list.map(t => String(t.id) === String(id) ? result : t))
+    return result
   },
   delete: async (id) => {
-    const list = getLocalCollection('vendorTasks')
+    try {
+      await apiCall(`/vendorTasks/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error(`API Error [DELETE /vendorTasks/${id}] - removing from local storage fallback:`, err)
+    }
+    const list = getLocalCollection('vendorTasks', INITIAL_VENDOR_TASKS)
     saveLocalCollection('vendorTasks', list.filter(t => String(t.id) !== String(id)))
-    jsonServer.delete(`/vendorTasks/${id}`).catch(() => {})
     return { success: true }
   }
 }

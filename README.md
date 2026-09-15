@@ -83,7 +83,7 @@ npm install -g json-server
 json-server --watch db.json --port 3000
 ```
 
-The API will be available at `http://localhost:3000`
+The deployed API is available at `https://dream-wedding-zasb.onrender.com` (or locally at `http://localhost:3000`).
 
 ### API Endpoints
 
