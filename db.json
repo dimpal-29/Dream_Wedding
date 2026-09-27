@@ -10,56 +10,228 @@
   ],
   "bookings": [
     {
+      "id": "0Pisd1Bq0KM",
       "name": "Dimpal Narkhede",
       "email": "d@gmail.com",
       "phone": "9638521478",
-      "service": "Cake Arrangement",
+      "service": "Cake Arrangement & Photography",
       "category": "ring-ceremony",
-      "customSummary": "Event: Ring Ceremony | Venue: Indoor | Guests: 162",
+      "customSummary": "Event: Ring Ceremony | Venue: Indoor Banquet Hall | Guests: 162",
       "eventType": "Ring Ceremony",
       "venue": "Indoor Banquet Hall",
-      "budget": "Under 1 Lakh",
-      "address": "ahemdabad",
-      "date": "2026-09-12",
+      "budget": "₹1,00,000",
+      "address": "Ahmedabad",
+      "date": "2026-09-23",
       "guests": "162",
-      "notes": "Event: Ring Ceremony | Venue: Indoor | Guests: 162",
+      "notes": "Grand floral backdrop and continuous event photography required.",
       "createdAt": "2026-09-08T06:58:55.459Z",
-      "id": "0Pisd1Bq0KM",
-      "paymentStatus": "Paid",
-      "paidAmount": "₹75,000",
+      "bookingStatus": "confirmed",
+      "paymentStatus": "Fully Paid",
+      "advancePaid": true,
+      "balancePaid": true,
+      "paidAmount": "₹1,00,000",
+      "advanceAmount": "₹50,000",
+      "balanceAmount": "₹50,000",
       "paymentMethod": "UPI",
       "transactionId": "TXN_DW52403504",
-      "paidAt": "2026-09-08T07:26:45.010Z"
+      "advanceTxnId": "TXN_DW52403504",
+      "balanceTxnId": "TXN_DW84729112",
+      "paidAt": "2026-09-08T07:26:45.010Z",
+      "vendorAllocations": [
+        {
+          "allocationId": "alloc_demo_1",
+          "vendorId": "vnd_photo_1",
+          "vendorName": "Royal Lens Studios",
+          "vendorEmail": "arjun@royallens.com",
+          "vendorPhone": "+91 98234 56789",
+          "service": "Photography",
+          "requirements": "Ring ceremony stage shoot, candid couple portraits, 4K reel delivery within 48 hours.",
+          "status": "Accepted",
+          "assignedAt": "2026-09-08T08:00:00.000Z",
+          "respondedAt": "2026-09-08T08:30:00.000Z",
+          "payout": {
+            "totalCost": 40000,
+            "advanceAmount": 20000,
+            "remainingAmount": 20000,
+            "payoutStatus": "Advance Paid",
+            "advancePaidAt": "2026-09-08T10:00:00.000Z",
+            "advanceTxnId": "VND_TXN_ADV_98421",
+            "fullyPaidAt": null,
+            "balanceTxnId": null
+          }
+        },
+        {
+          "allocationId": "alloc_demo_2",
+          "vendorId": "vnd_cater_1",
+          "vendorName": "Shahi Rasoi Gourmet Caterers",
+          "vendorEmail": "rajesh@shahirasoi.com",
+          "vendorPhone": "+91 98111 22334",
+          "service": "Catering",
+          "requirements": "Dessert counter, signature cake setup, and high tea snacks for 160 guests.",
+          "status": "Pending",
+          "assignedAt": "2026-09-08T09:15:00.000Z",
+          "payout": {
+            "totalCost": 35000,
+            "advanceAmount": 17500,
+            "remainingAmount": 17500,
+            "payoutStatus": "Pending",
+            "advancePaidAt": null,
+            "fullyPaidAt": null
+          }
+        }
+      ]
     },
     {
+      "id": "v9OOOLRiW68",
       "name": "Dimpal Narkhede",
       "email": "d@gmail.com",
       "phone": "9638521478",
-      "service": "Custom Package",
+      "service": "Luxury Grand Wedding Package",
       "bookingType": "package",
       "category": "package",
-      "customSummary": "Package: Custom Package (Custom Quote) | Event: Wedding & Reception | Guests: 300 | Venue: Indoor Banquet Hall",
+      "customSummary": "Package: Luxury Package | Event: Wedding & Reception | Guests: 300 | Venue: Indoor Grand Hall",
       "eventType": "Wedding & Reception",
-      "venue": "Indoor Banquet Hall",
-      "address": "ahemdabad",
-      "budget": "Custom Quote",
-      "date": "2026-09-30",
+      "venue": "Indoor Grand Banquet Hall",
+      "address": "Ahmedabad",
+      "budget": "₹2,50,000",
+      "date": "2026-10-15",
       "guests": "300",
-      "notes": "Package: Custom Package (Custom Quote) | Event: Wedding & Reception | Guests: 300 | Venue: Indoor Banquet Hall",
+      "notes": "Full turnkey wedding execution. Requires decoration, DJ music, catering, and bridal styling.",
       "createdAt": "2026-09-08T06:59:45.240Z",
-      "id": "v9OOOLRiW68",
-      "paymentStatus": "Paid",
-      "paidAmount": "₹25,000",
+      "bookingStatus": "confirmed",
+      "paymentStatus": "Advance Paid",
+      "advancePaid": true,
+      "balancePaid": false,
+      "paidAmount": "₹1,25,000",
+      "advanceAmount": "₹1,25,000",
+      "balanceAmount": "₹1,25,000",
       "paymentMethod": "UPI",
       "transactionId": "TXN_DW58473418",
-      "paidAt": "2026-09-08T09:07:54.922Z"
+      "advanceTxnId": "TXN_DW58473418",
+      "paidAt": "2026-09-08T09:07:54.922Z",
+      "vendorAllocations": [
+        {
+          "allocationId": "alloc_demo_3",
+          "vendorId": "vnd_decor_1",
+          "vendorName": "Mandap Crafts & Floral Dreams",
+          "vendorEmail": "sunita@mandapcrafts.com",
+          "vendorPhone": "+91 98765 43210",
+          "service": "Decoration",
+          "requirements": "Royal palace mandap theme with pastel exotic flowers, entrance arches, and fairy lights.",
+          "status": "Accepted",
+          "assignedAt": "2026-09-08T10:00:00.000Z",
+          "respondedAt": "2026-09-08T10:45:00.000Z",
+          "payout": {
+            "totalCost": 50000,
+            "advanceAmount": 25000,
+            "remainingAmount": 25000,
+            "payoutStatus": "Advance Paid",
+            "advancePaidAt": "2026-09-08T11:00:00.000Z",
+            "advanceTxnId": "VND_TXN_ADV_55102"
+          }
+        }
+      ]
+    },
+    {
+      "id": "RtbcW3YBgOQ",
+      "name": "Dimpal Narkhede",
+      "email": "d@gmail.com",
+      "phone": "9638521478",
+      "service": "Pre-Wedding Shoot & Video",
+      "eventType": "Pre-Wedding",
+      "venue": "Heritage Resort Lawn",
+      "budget": "₹80,000",
+      "address": "Ahmedabad",
+      "date": "2026-09-28",
+      "guests": "50",
+      "notes": "Sunset lighting and drone coverage required.",
+      "createdAt": "2026-09-07T07:19:09.725Z",
+      "bookingStatus": "confirmed",
+      "paymentStatus": "Advance Paid",
+      "advancePaid": true,
+      "balancePaid": false,
+      "paidAmount": "₹40,000",
+      "advanceAmount": "₹40,000",
+      "balanceAmount": "₹40,000",
+      "paymentMethod": "UPI",
+      "transactionId": "TXN_DW3391028",
+      "advanceTxnId": "TXN_DW3391028",
+      "paidAt": "2026-09-07T08:15:00.000Z",
+      "vendorAllocations": []
     }
   ],
-  "contacts": [],
-  "reviews": [],
+  "contacts": [
+    {
+      "id": "ct_demo_1",
+      "name": "Dimpal Narkhede",
+      "email": "d@gmail.com",
+      "phone": "9638521478",
+      "subject": "Wedding Inquiry",
+      "message": "Looking for custom decor and catering packages for November 2026.",
+      "createdAt": "2026-09-08T06:50:00.000Z"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "rv_1",
+      "name": "Sarah & Michael",
+      "email": "sarah.m@example.com",
+      "coupleImg": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWPfYEum55_klPefJd9j91urbCYvo51j78qQ&s",
+      "rating": 5,
+      "text": "Dream Wedding made our day absolutely perfect. The decoration was breathtaking and the team was so professional. We couldn't have asked for more!",
+      "date": "June 2024",
+      "status": "approved",
+      "featured": true
+    },
+    {
+      "id": "rv_2",
+      "name": "Harsh & Nehal",
+      "email": "harsh.nehal@gmail.com",
+      "coupleImg": "https://img.weddingbazaar.com/photos/pictures/005/302/747/new_medium/tejas_jagtap_photography_.jpg?1668173568",
+      "rating": 5,
+      "text": "From the first consultation to the last dance, everything was flawless. The catering was delicious and our guests are still talking about it. Highly recommend!",
+      "date": "August 2024",
+      "status": "approved",
+      "featured": true
+    },
+    {
+      "id": "rv_3",
+      "name": "Jessica & Varsha",
+      "email": "jessica.varsha@outlook.com",
+      "coupleImg": "https://www.azafashions.com/blog/wp-content/uploads/2025/10/featured.jpg",
+      "rating": 5,
+      "text": "The photographers captured every moment beautifully. We relive our wedding day every time we look at the photos. Thank you Dream Wedding!",
+      "date": "October 2024",
+      "status": "approved",
+      "featured": true
+    },
+    {
+      "id": "rv_4",
+      "name": "Pooja & Vikram",
+      "email": "pooja.vikram@gmail.com",
+      "coupleImg": "https://images.unsplash.com/photo-1519741497674-611481863552?w=400&q=80",
+      "rating": 4,
+      "text": "Great experience overall! The venue setup was magical and stage coordination was prompt. Would definitely recommend them to friends and family.",
+      "date": "December 2024",
+      "status": "approved",
+      "featured": false
+    },
+    {
+      "id": "rv_5",
+      "name": "Ananya & Rohan",
+      "email": "ananya.rohan@gmail.com",
+      "coupleImg": "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=400&q=80",
+      "rating": 5,
+      "text": "Outstanding planning! They managed every vendor seamlessly and made our sangeet and reception stress-free and unforgettable.",
+      "date": "January 2025",
+      "status": "pending",
+      "featured": false
+    }
+  ],
   "vendorTasks": [
     {
       "id": "vt_demo_1",
+      "bookingId": "0Pisd1Bq0KM",
       "vendorId": "vnd_photo_1",
       "vendorName": "Royal Lens Studios",
       "vendorEmail": "arjun@royallens.com",
@@ -100,7 +272,12 @@
       "experience": "8+ Years",
       "avatar": "📷",
       "defaultRate": 40000,
-      "servicesOffered": ["Candid Photography", "Cinematic Wedding Film", "Drone Shoots", "Pre-Wedding"]
+      "servicesOffered": [
+        "Candid Photography",
+        "Cinematic Wedding Film",
+        "Drone Shoots",
+        "Pre-Wedding"
+      ]
     },
     {
       "id": "vnd_decor_1",
@@ -119,7 +296,12 @@
       "experience": "10+ Years",
       "avatar": "🌸",
       "defaultRate": 50000,
-      "servicesOffered": ["Royal Mandap Decor", "Floral Entrance", "Lighting Architecture", "Theme Stages"]
+      "servicesOffered": [
+        "Royal Mandap Decor",
+        "Floral Entrance",
+        "Lighting Architecture",
+        "Theme Stages"
+      ]
     },
     {
       "id": "vnd_cater_1",
@@ -138,7 +320,12 @@
       "experience": "12+ Years",
       "avatar": "🍽️",
       "defaultRate": 60000,
-      "servicesOffered": ["Grand Royal Buffet", "Multi-Cuisine Counter", "Live Chaat Stations", "Artisanal Desserts"]
+      "servicesOffered": [
+        "Grand Royal Buffet",
+        "Multi-Cuisine Counter",
+        "Live Chaat Stations",
+        "Artisanal Desserts"
+      ]
     },
     {
       "id": "vnd_makeup_1",
@@ -157,7 +344,12 @@
       "experience": "7+ Years",
       "avatar": "💄",
       "defaultRate": 25000,
-      "servicesOffered": ["Bridal HD Makeup", "Airbrush Styling", "Hair Couture", "Saree Draping"]
+      "servicesOffered": [
+        "Bridal HD Makeup",
+        "Airbrush Styling",
+        "Hair Couture",
+        "Saree Draping"
+      ]
     },
     {
       "id": "vnd_dj_1",
@@ -176,7 +368,12 @@
       "experience": "6+ Years",
       "avatar": "🎧",
       "defaultRate": 30000,
-      "servicesOffered": ["Club DJ & Visuals", "Punjabi Dhol Troupe", "LED Truss Setup", "Sangeet Choreography Sound"]
+      "servicesOffered": [
+        "Club DJ & Visuals",
+        "Punjabi Dhol Troupe",
+        "LED Truss Setup",
+        "Sangeet Choreography Sound"
+      ]
     },
     {
       "id": "vnd_venue_1",
@@ -195,7 +392,12 @@
       "experience": "15+ Years",
       "avatar": "🏰",
       "defaultRate": 100000,
-      "servicesOffered": ["Lush Banquet Lawns", "Air-Conditioned Grand Hall", "Luxury Bridal Suite", "Guest Lodging"]
+      "servicesOffered": [
+        "Lush Banquet Lawns",
+        "Air-Conditioned Grand Hall",
+        "Luxury Bridal Suite",
+        "Guest Lodging"
+      ]
     },
     {
       "id": "vnd_photo_2",
@@ -214,7 +416,11 @@
       "experience": "5+ Years",
       "avatar": "📸",
       "defaultRate": 35000,
-      "servicesOffered": ["Traditional Photo & Video", "Teaser Reel Creation", "Same-Day Highlights"]
+      "servicesOffered": [
+        "Traditional Photo & Video",
+        "Teaser Reel Creation",
+        "Same-Day Highlights"
+      ]
     },
     {
       "id": "vnd_decor_2",
@@ -233,8 +439,11 @@
       "experience": "9+ Years",
       "avatar": "💐",
       "defaultRate": 45000,
-      "servicesOffered": ["Eco-friendly Marigold Decor", "Vibrant Haldi/Mehendi Setups", "Fairy Lights Canopy"]
+      "servicesOffered": [
+        "Eco-friendly Marigold Decor",
+        "Vibrant Haldi/Mehendi Setups",
+        "Fairy Lights Canopy"
+      ]
     }
-  ],
-  "$schema": "./node_modules/json-server/schema.json"
+  ]
 }
