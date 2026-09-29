@@ -172,6 +172,8 @@ function AppContent() {
         <Route path="/vendor" element={<ProtectedVendorRoute><VendorPortal /></ProtectedVendorRoute>} />
         <Route path="/vendor/login" element={<VendorLogin />} />
         <Route path="/vendor/register" element={<VendorRegister />} />
+        <Route path="/vendor-portal" element={<Navigate to="/vendor/login" replace />} />
+        <Route path="/vendor-login" element={<Navigate to="/vendor/login" replace />} />
       </Routes>
       {!isAdmin && !isVendorAuth && <Footer />}
     </div>

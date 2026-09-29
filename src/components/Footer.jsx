@@ -71,7 +71,7 @@ function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/vendor-login" className="footer-link">
+                <Link to="/vendor/login" className="footer-link">
                   <span className="footer-link-bullet">›</span>
                   <span>Vendor Portal</span>
                 </Link>
@@ -182,7 +182,7 @@ function Footer() {
               <span className="footer-dot">•</span>
               <Link to="/packages">Packages</Link>
               <span className="footer-dot">•</span>
-              <Link to="/vendor-login">Vendors</Link>
+              <Link to="/vendor/login">Vendors</Link>
             </div>
           </div>
         </div>

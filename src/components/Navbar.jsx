@@ -58,7 +58,7 @@ function Navbar() {
             <li><Link to="/gallery" onClick={closeMenu}>Gallery</Link></li>
             <li><Link to="/contact" onClick={closeMenu}>Contact</Link></li>
             <li><Link to="/bookings" onClick={closeMenu}>Bookings</Link></li>
-            <li><Link to="/vendor" onClick={closeMenu}>Vendor Portal</Link></li>
+            <li><Link to="/vendor/login" onClick={closeMenu}>Vendor Portal</Link></li>
             {!isLoggedIn && <li><Link to="/login" onClick={closeMenu} style={{ backgroundColor: '#b8860b', color: '#fff', padding: '8px 16px', borderRadius: '4px', textDecoration: 'none' }}>Login</Link></li>}
             {isLoggedIn && <li><a href="#" onClick={handleLogoutClick} style={{ backgroundColor: '#b8860b', color: '#fff', padding: '8px 16px', borderRadius: '4px', textDecoration: 'none' }}>Logout</a></li>}
           </ul>
