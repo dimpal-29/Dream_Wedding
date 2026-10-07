@@ -44,6 +44,24 @@ function Gallery() {
     loadReviews()
   }, [])
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActiveStory(null)
+      }
+    }
+    if (activeStory) {
+      document.body.style.overflow = 'hidden'
+      window.addEventListener('keydown', handleKeyDown)
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeStory])
+
   const loadReviews = async () => {
     try {
       const data = await reviewsApi.getAll()
@@ -450,6 +468,43 @@ function Gallery() {
           </form>
         </div>
       </section>
+
+      {/* Story Detail Modal Box */}
+      {activeStory && (
+        <div 
+          className="story-modal-overlay" 
+          onClick={() => setActiveStory(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="story-modal-box" onClick={(e) => e.stopPropagation()}>
+            <button 
+              type="button" 
+              className="story-modal-close" 
+              onClick={() => setActiveStory(null)}
+              aria-label="Close story"
+            >
+              &times;
+            </button>
+            <div className="story-modal-img-wrap">
+              <img 
+                src={activeStory.image} 
+                alt={activeStory.title} 
+                className="story-modal-img" 
+              />
+            </div>
+            <div className="story-modal-header-info">
+              <span className="story-date-tag">{activeStory.date}</span>
+              <h2>{activeStory.title}</h2>
+            </div>
+            <div className="story-modal-content">
+              {activeStory.story.split('\n\n').map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
