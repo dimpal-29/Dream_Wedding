@@ -7,6 +7,7 @@ import { usersApi } from '../services/api'
 function Login() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -82,7 +83,41 @@ function Login() {
               </div>
               <div className="form-group">
                 <label htmlFor="loginPassword">Password *</label>
-                <input type="password" id="loginPassword" name="password" required placeholder="Enter your password" minLength="6" value={formData.password} onChange={handleChange} />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="loginPassword"
+                    name="password"
+                    required
+                    placeholder="Enter your password"
+                    minLength="6"
+                    value={formData.password}
+                    onChange={handleChange}
+                    style={{ paddingRight: '40px', width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#888',
+                      fontSize: '1rem',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 2
+                    }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
               </div>
               <div className="form-group form-check">
                 <label>

@@ -7,6 +7,8 @@ import { usersApi } from '../services/api'
 function Registration() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -114,15 +116,80 @@ function Registration() {
               </div>
               <div className="form-group">
                 <label htmlFor="regPhone">Phone</label>
-                <input type="tel" id="regPhone" name="phone" placeholder="(555) 000-0000" value={formData.phone} onChange={handleChange} />
+                <input type="tel" id="regPhone" name="phone" placeholder="+91 98765 43210" value={formData.phone} onChange={handleChange} />
               </div>
               <div className="form-group">
                 <label htmlFor="regPassword">Password *</label>
-                <input type="password" id="regPassword" name="password" required placeholder="Min 6 characters" minLength="6" value={formData.password} onChange={handleChange} />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="regPassword"
+                    name="password"
+                    required
+                    placeholder="Min 6 characters"
+                    minLength="6"
+                    value={formData.password}
+                    onChange={handleChange}
+                    style={{ paddingRight: '40px', width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#888',
+                      fontSize: '1rem',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      zIndex: 2
+                    }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
               </div>
               <div className="form-group">
                 <label htmlFor="regConfirmPassword">Confirm Password *</label>
-                <input type="password" id="regConfirmPassword" name="confirmPassword" required placeholder="Confirm password" value={formData.confirmPassword} onChange={handleChange} />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    id="regConfirmPassword"
+                    name="confirmPassword"
+                    required
+                    placeholder="Confirm password"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    style={{ paddingRight: '40px', width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#888',
+                      fontSize: '1rem',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      zIndex: 2
+                    }}
+                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
               </div>
               <div className="form-group form-check">
                 <label>

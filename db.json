@@ -6,6 +6,13 @@
       "phone": "9638521478",
       "password": "123456",
       "id": "I7SNrkgdzM8"
+    },
+    {
+      "name": "Payal Patel",
+      "email": "payal@gmail.com",
+      "phone": "9638521478",
+      "password": "123456",
+      "id": "usr_1795427957433id8o"
     }
   ],
   "bookings": [
@@ -34,8 +41,8 @@
       "balanceAmount": "₹50,000",
       "paymentMethod": "UPI",
       "transactionId": "TXN_DW52403504",
-      "advanceTxnId": "TXN_DW52403504",
-      "balanceTxnId": "TXN_DW84729112",
+      "advanceTxnId": "TXN_ADM_160883",
+      "balanceTxnId": "TXN_BAL_814116",
       "paidAt": "2026-09-08T07:26:45.010Z",
       "vendorAllocations": [
         {
@@ -53,10 +60,10 @@
             "totalCost": 40000,
             "advanceAmount": 20000,
             "remainingAmount": 20000,
-            "payoutStatus": "Advance Paid",
+            "payoutStatus": "Fully Paid",
             "advancePaidAt": "2026-09-08T10:00:00.000Z",
             "advanceTxnId": "VND_TXN_ADV_98421",
-            "fullyPaidAt": null,
+            "fullyPaidAt": "2026-11-23T11:00:26.214Z",
             "balanceTxnId": null
           }
         },
@@ -74,12 +81,14 @@
             "totalCost": 35000,
             "advanceAmount": 17500,
             "remainingAmount": 17500,
-            "payoutStatus": "Pending",
-            "advancePaidAt": null,
-            "fullyPaidAt": null
+            "payoutStatus": "Fully Paid",
+            "advancePaidAt": "2026-11-23T11:00:37.517Z",
+            "fullyPaidAt": "2026-11-23T11:00:43.033Z"
           }
         }
-      ]
+      ],
+      "statusUpdatedAt": "2026-11-23T09:20:22.251Z",
+      "updatedAt": "2026-11-23T11:00:43.033Z"
     },
     {
       "id": "v9OOOLRiW68",
@@ -99,12 +108,12 @@
       "notes": "Full turnkey wedding execution. Requires decoration, DJ music, catering, and bridal styling.",
       "createdAt": "2026-09-08T06:59:45.240Z",
       "bookingStatus": "confirmed",
-      "paymentStatus": "Advance Paid",
+      "paymentStatus": "Fully Paid",
       "advancePaid": true,
-      "balancePaid": false,
+      "balancePaid": true,
       "paidAmount": "₹1,25,000",
       "advanceAmount": "₹1,25,000",
-      "balanceAmount": "₹1,25,000",
+      "balanceAmount": "₹25,000",
       "paymentMethod": "UPI",
       "transactionId": "TXN_DW58473418",
       "advanceTxnId": "TXN_DW58473418",
@@ -125,12 +134,131 @@
             "totalCost": 50000,
             "advanceAmount": 25000,
             "remainingAmount": 25000,
-            "payoutStatus": "Advance Paid",
+            "payoutStatus": "Fully Paid",
             "advancePaidAt": "2026-09-08T11:00:00.000Z",
-            "advanceTxnId": "VND_TXN_ADV_55102"
+            "advanceTxnId": "VND_TXN_ADV_55102",
+            "fullyPaidAt": "2026-11-23T11:00:20.085Z"
+          }
+        },
+        {
+          "allocationId": "alloc_1795417886765370s",
+          "vendorId": "vnd_mwsuogyt_j4kh",
+          "vendorName": "Gayatri Decoration Studio",
+          "vendorEmail": "gayatri@decorationstudio.com",
+          "vendorPhone": "+91 98765 12345",
+          "service": "Decoration",
+          "requirements": "Full floral mandap design and stage backdrop.",
+          "status": "Completed",
+          "assignedAt": "2026-11-23T05:54:27.519Z",
+          "respondedAt": "2026-11-23T07:11:08.269Z",
+          "payout": {
+            "totalCost": 30000,
+            "advanceAmount": 30000,
+            "remainingAmount": 0,
+            "payoutStatus": "Fully Paid",
+            "advancePaidAt": "2026-11-23T07:11:26.765Z"
+          },
+          "completedAt": "2026-11-23T07:14:32.818Z",
+          "aiChecklist": {
+            "generatedAt": "2026-11-23T08:24:13.167Z",
+            "modelUsed": "gemini-3.5-flash-lite",
+            "taskId": "alloc_1795417886765370s",
+            "bookingId": "v9OOOLRiW68",
+            "vendorService": "Decoration",
+            "customerName": "Dimpal Narkhede",
+            "eventDate": "2026-10-15",
+            "venue": "Indoor Grand Banquet Hall, Ahmedabad",
+            "guests": "300",
+            "isPastEvent": true,
+            "pastEventNotice": "This event took place on 2026-10-15. Displaying completed execution and post-event reconciliation timeline.",
+            "checklist": [
+              {
+                "id": "chk_1",
+                "text": "Supervised the safe teardown and dismantling of the full floral mandap and stage backdrop at Indoor Grand Banquet Hall",
+                "completed": false
+              },
+              {
+                "id": "chk_2",
+                "text": "Inventoried and packed up all structural aluminum framing, base plates, and pipe-and-drape hardware",
+                "completed": false
+              },
+              {
+                "id": "chk_3",
+                "text": "Sorted salvageable fresh/silk florals and disposed of organic floral waste according to venue sustainability guidelines",
+                "completed": false
+              },
+              {
+                "id": "chk_4",
+                "text": "Rolled, inspected, and packed velvet and organza fabric drapery for dry cleaning and warehouse storage",
+                "completed": false
+              },
+              {
+                "id": "chk_5",
+                "text": "Tested and safely packed away all LED up-lights, pin-spots, and fairy light strings used for ambient mandap illumination",
+                "completed": false
+              },
+              {
+                "id": "chk_6",
+                "text": "Conducted venue damage inspection with Indoor Grand Banquet Hall management to ensure compliance with property rules",
+                "completed": false
+              },
+              {
+                "id": "chk_7",
+                "text": "Conducted a final review and post-event sign-off meeting with client Dimpal Narkhede",
+                "completed": false
+              },
+              {
+                "id": "chk_8",
+                "text": "Completed final billing reconciliation, invoice settlement, and deposit return processing for Gayatri Decoration Studio",
+                "completed": false
+              }
+            ],
+            "materials": [
+              "Heavy-duty rigging gloves and tool belts for dismantling crew",
+              "Heavy-duty storage bins and garment bags for fabric drapery preservation",
+              "Labeling tape and inventory checklist clipboards",
+              "Industrial trash bags and organic waste removal containers",
+              "A-frame ladders and safety harnesses for overhead structural breakdown",
+              "Packing crates for delicate props, floral urns, and decorative mandap pillars",
+              "Cable winders and protective wraps for electrical decor lighting"
+            ],
+            "timeline": [
+              {
+                "timing": "Event Day (2026-10-15)",
+                "title": "On-Site Execution & Monitoring",
+                "details": "Completed full installation of the floral mandap and stage backdrop by 10:00 AM, maintaining fresh floral hydration and structural integrity throughout the 300-guest event."
+              },
+              {
+                "timing": "Post-Event Immediate (Night of 2026-10-15)",
+                "title": "Dismantling & Load-Out",
+                "details": "Executed immediate post-event teardown of the mandap framework, salvageable florals, lighting rigs, and fabric drapes from the Indoor Grand Banquet Hall."
+              },
+              {
+                "timing": "Day After Event",
+                "title": "Warehouse Restock & Asset Audit",
+                "details": "Unloaded all decoration assets at the Gayatri Decoration Studio warehouse, inspected framing components for wear, and sent textiles for professional cleaning."
+              },
+              {
+                "timing": "Within 3 Days Post-Event",
+                "title": "Client Reconciliation & Sign-off",
+                "details": "Conducted final account closure and feedback review with client Dimpal Narkhede, finalizing all vendor paperwork."
+              }
+            ],
+            "instructions": [
+              "Ensure all venue load-out policies of Indoor Grand Banquet Hall are strictly followed during the post-event teardown phase.",
+              "Verify that all electrical decor lights (pin-spots, fairy lights) are completely powered down and cooled before packing into storage cases.",
+              "Handle all reusable stage props and mandap pillars with protective padding to prevent scratching during transport back to the studio.",
+              "Segregate organic floral waste from recyclable plastics and metal framework elements to maintain clean venue handoff standards.",
+              "Maintain clear photographic documentation of dismantled items to record inventory condition for Gayatri Decoration Studio."
+            ]
           }
         }
-      ]
+      ],
+      "statusUpdatedAt": "2026-11-23T07:11:26.765Z",
+      "updatedAt": "2026-11-23T11:00:20.086Z",
+      "balanceTxnId": "TXN_BAL_22564008",
+      "balanceMethod": "UPI",
+      "balancePaidAt": "2026-11-23T08:29:25.410Z"
     },
     {
       "id": "RtbcW3YBgOQ",
@@ -147,17 +275,72 @@
       "notes": "Sunset lighting and drone coverage required.",
       "createdAt": "2026-09-07T07:19:09.725Z",
       "bookingStatus": "confirmed",
-      "paymentStatus": "Advance Paid",
+      "paymentStatus": "Fully Paid",
       "advancePaid": true,
-      "balancePaid": false,
+      "balancePaid": true,
       "paidAmount": "₹40,000",
       "advanceAmount": "₹40,000",
-      "balanceAmount": "₹40,000",
+      "balanceAmount": "₹25,000",
       "paymentMethod": "UPI",
       "transactionId": "TXN_DW3391028",
       "advanceTxnId": "TXN_DW3391028",
       "paidAt": "2026-09-07T08:15:00.000Z",
-      "vendorAllocations": []
+      "vendorAllocations": [],
+      "statusUpdatedAt": "2026-11-23T09:50:47.762Z",
+      "balanceTxnId": "TXN_BAL_27464868",
+      "balanceMethod": "UPI",
+      "balancePaidAt": "2026-11-23T09:51:06.271Z"
+    },
+    {
+      "name": "Payal Patel",
+      "email": "payal@gmail.com",
+      "phone": "9638521478",
+      "service": "Engagement Decoration",
+      "category": "ring-ceremony",
+      "customSummary": "Event: Ring Ceremony | Venue: Indoor | Guests: 185",
+      "eventType": "Ring Ceremony",
+      "venue": "Indoor Banquet Hall",
+      "budget": "Under 1 Lakh",
+      "address": "Udaipur, Rajasthan",
+      "date": "2026-12-23",
+      "guests": "185",
+      "notes": "no [Custom Info: Event: Ring Ceremony | Venue: Indoor | Guests: 185]",
+      "bookingStatus": "confirmed",
+      "paymentStatus": "Advance Paid",
+      "advancePaid": true,
+      "balancePaid": false,
+      "createdAt": "2026-11-23T10:00:19.771Z",
+      "id": "bk_1795428019772zxbz",
+      "statusUpdatedAt": "2026-11-23T10:00:39.190Z",
+      "advanceAmount": "₹25,000",
+      "advanceTxnId": "TXN_ADV_28079395",
+      "advanceMethod": "UPI",
+      "advancePaidAt": "2026-11-23T10:01:20.804Z",
+      "transactionId": "TXN_ADV_28079395",
+      "vendorAllocations": [
+        {
+          "allocationId": "alloc_17954283654377gk3",
+          "vendorId": "vnd_mwsuogyt_j4kh",
+          "vendorName": "Gayatri Decoration Studio",
+          "vendorEmail": "gayatri@decorationstudio.com",
+          "vendorPhone": "+91 98765 12345",
+          "service": "Decoration",
+          "requirements": "Event: Ring Ceremony | Venue: Indoor | Guests: 185",
+          "vendorResponseNote": "and remining payment 30000",
+          "status": "Accepted",
+          "assignedAt": "2026-11-23T10:04:26.608Z",
+          "respondedAt": "2026-11-23T10:05:28.995Z",
+          "payout": {
+            "totalCost": 40000,
+            "advanceAmount": 10000,
+            "remainingAmount": 30000,
+            "payoutStatus": "Fully Paid",
+            "advancePaidAt": "2026-11-23T11:00:28.940Z",
+            "fullyPaidAt": "2026-11-23T11:00:34.610Z"
+          }
+        }
+      ],
+      "updatedAt": "2026-11-23T11:00:34.610Z"
     }
   ],
   "contacts": [
@@ -251,7 +434,286 @@
       "assignmentHistory": [],
       "createdAt": "2026-09-12T10:00:00.000Z",
       "respondedAt": null,
-      "decidedAt": null
+      "decidedAt": null,
+      "payoutStatus": "Fully Paid",
+      "advancePaidAt": "2026-11-23T11:00:26.229Z",
+      "fullyPaidAt": "2026-11-23T11:00:43.042Z"
+    },
+    {
+      "customerEmail": "d@gmail.com",
+      "createdAt": "2026-11-23T05:54:27.519Z",
+      "guests": "300",
+      "vendorResponse": "YES",
+      "venue": "Indoor Grand Banquet Hall, Ahmedabad",
+      "respondedAt": "2026-11-23T07:11:08.269Z",
+      "vendorName": "Gayatri Decoration Studio",
+      "vendorId": "vnd_mwsuogyt_j4kh",
+      "vendorResponseNote": "",
+      "vendorPhone": "+91 98765 12345",
+      "customerName": "Dimpal Narkhede",
+      "decidedAt": "2026-11-23T07:11:26.750Z",
+      "assignmentHistory": [],
+      "service": "Decoration",
+      "bookingId": "v9OOOLRiW68",
+      "eventDate": "2026-10-15",
+      "eventTime": "10:00",
+      "requirements": "Full floral mandap design and stage backdrop.",
+      "adminDecision": "Approved",
+      "vendorEmail": "gayatri@decorationstudio.com",
+      "status": "Approved",
+      "customerPhone": "9638521478",
+      "id": "vt_mwsupbi5esrdh",
+      "advanceAmount": 30000,
+      "aiChecklist": {
+        "generatedAt": "2026-11-23T08:24:13.167Z",
+        "modelUsed": "gemini-3.5-flash-lite",
+        "taskId": "alloc_1795417886765370s",
+        "bookingId": "v9OOOLRiW68",
+        "vendorService": "Decoration",
+        "customerName": "Dimpal Narkhede",
+        "eventDate": "2026-10-15",
+        "venue": "Indoor Grand Banquet Hall, Ahmedabad",
+        "guests": "300",
+        "isPastEvent": true,
+        "pastEventNotice": "This event took place on 2026-10-15. Displaying completed execution and post-event reconciliation timeline.",
+        "checklist": [
+          {
+            "id": "chk_1",
+            "text": "Supervised the safe teardown and dismantling of the full floral mandap and stage backdrop at Indoor Grand Banquet Hall",
+            "completed": false
+          },
+          {
+            "id": "chk_2",
+            "text": "Inventoried and packed up all structural aluminum framing, base plates, and pipe-and-drape hardware",
+            "completed": false
+          },
+          {
+            "id": "chk_3",
+            "text": "Sorted salvageable fresh/silk florals and disposed of organic floral waste according to venue sustainability guidelines",
+            "completed": false
+          },
+          {
+            "id": "chk_4",
+            "text": "Rolled, inspected, and packed velvet and organza fabric drapery for dry cleaning and warehouse storage",
+            "completed": false
+          },
+          {
+            "id": "chk_5",
+            "text": "Tested and safely packed away all LED up-lights, pin-spots, and fairy light strings used for ambient mandap illumination",
+            "completed": false
+          },
+          {
+            "id": "chk_6",
+            "text": "Conducted venue damage inspection with Indoor Grand Banquet Hall management to ensure compliance with property rules",
+            "completed": false
+          },
+          {
+            "id": "chk_7",
+            "text": "Conducted a final review and post-event sign-off meeting with client Dimpal Narkhede",
+            "completed": false
+          },
+          {
+            "id": "chk_8",
+            "text": "Completed final billing reconciliation, invoice settlement, and deposit return processing for Gayatri Decoration Studio",
+            "completed": false
+          }
+        ],
+        "materials": [
+          "Heavy-duty rigging gloves and tool belts for dismantling crew",
+          "Heavy-duty storage bins and garment bags for fabric drapery preservation",
+          "Labeling tape and inventory checklist clipboards",
+          "Industrial trash bags and organic waste removal containers",
+          "A-frame ladders and safety harnesses for overhead structural breakdown",
+          "Packing crates for delicate props, floral urns, and decorative mandap pillars",
+          "Cable winders and protective wraps for electrical decor lighting"
+        ],
+        "timeline": [
+          {
+            "timing": "Event Day (2026-10-15)",
+            "title": "On-Site Execution & Monitoring",
+            "details": "Completed full installation of the floral mandap and stage backdrop by 10:00 AM, maintaining fresh floral hydration and structural integrity throughout the 300-guest event."
+          },
+          {
+            "timing": "Post-Event Immediate (Night of 2026-10-15)",
+            "title": "Dismantling & Load-Out",
+            "details": "Executed immediate post-event teardown of the mandap framework, salvageable florals, lighting rigs, and fabric drapes from the Indoor Grand Banquet Hall."
+          },
+          {
+            "timing": "Day After Event",
+            "title": "Warehouse Restock & Asset Audit",
+            "details": "Unloaded all decoration assets at the Gayatri Decoration Studio warehouse, inspected framing components for wear, and sent textiles for professional cleaning."
+          },
+          {
+            "timing": "Within 3 Days Post-Event",
+            "title": "Client Reconciliation & Sign-off",
+            "details": "Conducted final account closure and feedback review with client Dimpal Narkhede, finalizing all vendor paperwork."
+          }
+        ],
+        "instructions": [
+          "Ensure all venue load-out policies of Indoor Grand Banquet Hall are strictly followed during the post-event teardown phase.",
+          "Verify that all electrical decor lights (pin-spots, fairy lights) are completely powered down and cooled before packing into storage cases.",
+          "Handle all reusable stage props and mandap pillars with protective padding to prevent scratching during transport back to the studio.",
+          "Segregate organic floral waste from recyclable plastics and metal framework elements to maintain clean venue handoff standards.",
+          "Maintain clear photographic documentation of dismantled items to record inventory condition for Gayatri Decoration Studio."
+        ]
+      },
+      "payoutStatus": "Fully Paid",
+      "advancePaidAt": "2026-11-23T11:00:20.115Z",
+      "fullyPaidAt": "2026-11-23T11:00:20.115Z"
+    },
+    {
+      "bookingId": "0Pisd1Bq0KM",
+      "vendorId": "vnd_mwsuogyt_j4kh",
+      "vendorName": "Gayatri Decoration Studio",
+      "vendorEmail": "gayatri@decorationstudio.com",
+      "vendorPhone": "+91 98765 12345",
+      "customerName": "Dimpal Narkhede",
+      "customerEmail": "d@gmail.com",
+      "customerPhone": "9638521478",
+      "service": "Decoration",
+      "eventDate": "2026-09-23",
+      "eventTime": "",
+      "venue": "Indoor Banquet Hall",
+      "guests": "162",
+      "requirements": "Event: Ring Ceremony | Venue: Indoor Banquet Hall | Guests: 162",
+      "status": "Vendor Responded",
+      "vendorResponse": "NO",
+      "vendorResponseNote": "no timing",
+      "adminDecision": null,
+      "assignmentHistory": [],
+      "createdAt": "2026-11-23T06:14:54.220Z",
+      "respondedAt": "2026-11-23T07:12:22.172Z",
+      "decidedAt": null,
+      "id": "vt_1795414494220si78",
+      "advanceAmount": 0,
+      "aiChecklist": {
+        "generatedAt": "2026-11-23T08:32:23.163Z",
+        "modelUsed": "gemini-3.5-flash-lite",
+        "taskId": "vt_1795414494220si78",
+        "bookingId": "0Pisd1Bq0KM",
+        "vendorService": "Decoration",
+        "customerName": "Dimpal Narkhede",
+        "eventDate": "2026-09-23",
+        "venue": "Indoor Banquet Hall",
+        "guests": "162",
+        "isPastEvent": true,
+        "pastEventNotice": "This event took place on 2026-09-23. Displaying completed execution and post-event reconciliation timeline.",
+        "checklist": [
+          {
+            "id": "chk_1",
+            "text": "Supervised the secure installation of the grand floral backdrop for Dimpal Narkhede's ring ceremony in the indoor banquet hall.",
+            "completed": false
+          },
+          {
+            "id": "chk_2",
+            "text": "Conducted safety and structural stability checks on all rigging, trussing, and stage framing for the 162-guest capacity setup.",
+            "completed": false
+          },
+          {
+            "id": "chk_3",
+            "text": "Positioned ambient decor lighting, pin-spotlights, and fairy light curtains to enhance the ring exchange stage area.",
+            "completed": false
+          },
+          {
+            "id": "chk_4",
+            "text": "Executed high-end fabric draping along the banquet hall ceiling and entrance pathway per design specifications.",
+            "completed": false
+          },
+          {
+            "id": "chk_5",
+            "text": "Placed fresh floral centerpieces on all guest dining and lounge tables suited for 162 attendees.",
+            "completed": false
+          },
+          {
+            "id": "chk_6",
+            "text": "Completed post-event dismantling of floral arches, structural backdrops, and props immediately after the ring ceremony concluded.",
+            "completed": false
+          },
+          {
+            "id": "chk_7",
+            "text": "Sorted and packed reusable props, metal stands, and fabric drapery into Gayatri Decoration Studio transport crates.",
+            "completed": false
+          },
+          {
+            "id": "chk_8",
+            "text": "Conducted final venue handover inspection with banquet hall management ensuring zero property damage.",
+            "completed": false
+          }
+        ],
+        "materials": [
+          "Fresh cut exotic flowers (Roses, Orchids, Gypsophila) for grand floral backdrop",
+          "Heavy-duty aluminum trussing and base plates for stage backdrop",
+          "Flame-retardant sheer and velvet fabrics for ceiling and pillar draping",
+          "Warm-white LED fairy lights and spotlight fixtures",
+          "Floral foam, chicken wire, and cable ties for structural flower arrangements",
+          "Glass vases and metallic stands for table centerpieces",
+          "A-frame ladders and basic rigging tools for installation and teardown",
+          "Transport crates and protective garment bags for prop preservation"
+        ],
+        "timeline": [
+          {
+            "timing": "2026-09-23 (Event Day)",
+            "title": "On-Site Setup & Execution",
+            "details": "Completed load-in, assembly of the grand floral backdrop, stage drapery, table centerpieces, and lighting rigging for Dimpal Narkhede's ring ceremony within the indoor banquet hall."
+          },
+          {
+            "timing": "2026-09-23 (Post-Event Night)",
+            "title": "Dismantling & Teardown",
+            "details": "Executed complete breakdown of all floral installations, fabric draping, and lighting fixtures immediately after the 162 guests departed."
+          },
+          {
+            "timing": "2026-09-24",
+            "title": "Inventory Audit & Equipment Restock",
+            "details": "Checked all returned metal frames, lighting equipment, and reusable decor items into Gayatri Decoration Studio warehouse inventory."
+          },
+          {
+            "timing": "2026-09-25",
+            "title": "Client Sign-Off & Account Reconciliation",
+            "details": "Submitted final project completion report to client Dimpal Narkhede and finalized financial settlements."
+          }
+        ],
+        "instructions": [
+          "Ensure all stage structures and floral backdrops built for the indoor banquet hall meet strict venue safety codes and do not block emergency exits for the 162 guests.",
+          "Verify that all fabrics and drapery materials utilized possess certified fire-retardant properties.",
+          "Handle all fresh floral components with care to maintain peak visual appeal throughout the ring ceremony.",
+          "Supervise the teardown crew closely during post-event dismantling to prevent scratches or scuffs to the indoor banquet hall floors and walls.",
+          "Segregate organic floral waste from reusable props and metallic framework during the clean-up phase."
+        ]
+      },
+      "payoutStatus": "Fully Paid",
+      "advancePaidAt": "2026-11-23T11:00:26.229Z",
+      "fullyPaidAt": "2026-11-23T11:00:43.043Z"
+    },
+    {
+      "bookingId": "bk_1795428019772zxbz",
+      "vendorId": "vnd_mwsuogyt_j4kh",
+      "vendorName": "Gayatri Decoration Studio",
+      "vendorEmail": "gayatri@decorationstudio.com",
+      "vendorPhone": "+91 98765 12345",
+      "customerName": "Payal Patel",
+      "customerEmail": "payal@gmail.com",
+      "customerPhone": "9638521478",
+      "service": "Decoration",
+      "eventDate": "2026-12-23",
+      "eventTime": "",
+      "venue": "Indoor Banquet Hall",
+      "guests": "185",
+      "requirements": "Event: Ring Ceremony | Venue: Indoor | Guests: 185",
+      "status": "Approved",
+      "vendorResponse": "YES",
+      "vendorResponseNote": "and remining payment 30000",
+      "adminDecision": "Approved",
+      "assignmentHistory": [],
+      "createdAt": "2026-11-23T10:04:26.608Z",
+      "respondedAt": "2026-11-23T10:05:28.995Z",
+      "decidedAt": "2026-11-23T10:06:05.426Z",
+      "id": "vt_1795428266608ktij",
+      "advanceAmount": 10000,
+      "remainingAmount": 30000,
+      "totalCost": 40000,
+      "payoutStatus": "Fully Paid",
+      "advancePaidAt": "2026-11-23T11:00:28.956Z",
+      "fullyPaidAt": "2026-11-23T11:00:34.621Z"
     }
   ],
   "vendors": [
@@ -388,7 +850,7 @@
       "phone": "+91 96444 55667",
       "city": "Udaipur / Ahmedabad",
       "location": "Udaipur / Ahmedabad",
-      "rating": 5.0,
+      "rating": 5,
       "experience": "15+ Years",
       "avatar": "🏰",
       "defaultRate": 100000,
@@ -444,6 +906,29 @@
         "Vibrant Haldi/Mehendi Setups",
         "Fairy Lights Canopy"
       ]
+    },
+    {
+      "id": "vnd_mwsuogyt_j4kh",
+      "name": "Gayatri Decoration Studio",
+      "businessName": "Gayatri Decoration Studio",
+      "ownerName": "Gayatri Patel",
+      "email": "gayatri@decorationstudio.com",
+      "phone": "+91 98765 12345",
+      "service": "Decoration",
+      "category": "decoration",
+      "city": "Ahmedabad",
+      "location": "Navrangpura, Ahmedabad",
+      "description": "Luxury wedding mandap, floral decor, and thematic entrance styling.",
+      "experience": "6+ Years",
+      "availability": true,
+      "avatar": "🌸",
+      "rating": 0,
+      "defaultRate": 0,
+      "servicesOffered": [],
+      "accountStatus": "Active",
+      "isRegisteredVendor": true,
+      "registeredAt": "2026-11-23T05:53:48.006Z",
+      "isAvailable": true
     }
   ]
 }

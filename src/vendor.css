@@ -2067,27 +2067,43 @@
 }
 
 .vdb-view-toggle {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   background: #f1f5f9;
   border-radius: 10px;
-  padding: 3px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
 }
 
 .vdb-view-btn {
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
   background: transparent;
   border: none;
   border-radius: 7px;
-  font-size: 0.88rem;
+  font-size: 0.83rem;
+  font-weight: 600;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.vdb-view-btn i {
+  font-size: 0.9rem;
+}
+
+.vdb-view-btn:hover {
+  color: #1e293b;
 }
 
 .vdb-view-btn.active {
   background: #ffffff;
-  color: var(--vdb-gold);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  color: var(--vdb-gold, #b8860b);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 /* Tasks Grid */

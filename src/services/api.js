@@ -1,14 +1,19 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'https://dream-wedding-zasb.onrender.com';
-const API_TIMEOUT = 10000; // 10 seconds for Render free-tier cold starts
+// ─────────────────────────────────────────────────────────────────────────────
+// API_BASE_URL points to the local Express backend which persists all data to
+// db.json. This survives page refreshes, browser restarts, and backend restarts.
+// Previously this pointed to a Render (json-server) deployment which would
+// reset/lose vendor data after the free-tier server went to sleep.
+// ─────────────────────────────────────────────────────────────────────────────
+const API_BASE_URL = 'http://localhost:5000/api';
+const API_TIMEOUT = 10000; // 10 seconds
 
 export const jsonServer = axios.create({
   baseURL: API_BASE_URL,
   timeout: API_TIMEOUT,
   headers: { 'Content-Type': 'application/json' }
 })
-
 // Helper function to read/write local fallback storage
 function getLocalCollection(name, defaultData = []) {
   try {
@@ -805,15 +810,11 @@ export const vendorsApi = {
       ...vendor,
       id: vendor.id || 'vnd_' + Date.now() + Math.random().toString(36).substring(2, 6)
     }
-    let saved = newVendor
-    try {
-      saved = await apiCall('/vendors', {
-        method: 'POST',
-        body: JSON.stringify(newVendor),
-      })
-    } catch (err) {
-      console.error('API Error [POST /vendors] - saving to local storage fallback:', err)
-    }
+    // Must persist to backend first; do not swallow error
+    const saved = await apiCall('/vendors', {
+      method: 'POST',
+      body: JSON.stringify(newVendor),
+    })
     const result = saved || newVendor
     const list = getLocalCollection('vendors')
     saveLocalCollection('vendors', [...list.filter(v => String(v.id) !== String(result.id)), result])
@@ -834,6 +835,16 @@ export const vendorsApi = {
     const list = getLocalCollection('vendors')
     saveLocalCollection('vendors', list.map(v => String(v.id) === String(id) ? result : v))
     return result
+  },
+  updateStatus: async (id, accountStatus) => {
+    const res = await apiCall(`/vendors/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ accountStatus })
+    })
+    const updated = res.vendor || res
+    const list = getLocalCollection('vendors')
+    saveLocalCollection('vendors', list.map(v => String(v.id) === String(id) ? { ...v, accountStatus } : v))
+    return updated
   },
   delete: async (id) => {
     try {
@@ -968,49 +979,98 @@ export const vendorTasksApi = {
 // ── Vendor Authentication API ──────────────────────────────────────────────
 export const vendorAuthApi = {
   /**
-   * Register a new vendor. Saves them to dw_vendors with hashed-style password.
+   * Register a new vendor.
+   * Calls the backend POST /api/vendors/register which hashes password,
+   * generates a unique ID, and saves permanently to db.json.
    */
   register: async (vendorData) => {
-    const list = await vendorsApi.getAll()
-    // Check for duplicate email
-    const existing = list.find(v => v.email && v.email.toLowerCase() === vendorData.email.toLowerCase())
-    if (existing) {
-      throw new Error('A vendor with this email already exists.')
-    }
-    const newVendor = {
-      id: 'vnd_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      name: vendorData.businessName || vendorData.name,
-      businessName: vendorData.businessName,
-      ownerName: vendorData.ownerName,
-      email: vendorData.email.toLowerCase().trim(),
+    const payload = {
+      businessName: vendorData.businessName || vendorData.name,
+      ownerName: vendorData.ownerName || vendorData.contactPerson,
+      email: vendorData.email,
       phone: vendorData.phone,
-      password: vendorData.password, // stored plain for localStorage approach (same as usersApi)
+      password: vendorData.password,
       service: vendorData.service,
-      category: (vendorData.service || '').toLowerCase(),
       city: vendorData.city || vendorData.location || '',
       location: vendorData.location || vendorData.city || '',
-      avatar: vendorData.avatar || getServiceAvatar(vendorData.service),
-      rating: 0,
-      experience: '0 Years',
-      defaultRate: 0,
-      servicesOffered: [],
-      registeredAt: new Date().toISOString(),
-      isRegisteredVendor: true
+      description: vendorData.description || '',
+      experience: vendorData.experience || '0 Years',
+      availability: vendorData.availability !== undefined ? vendorData.availability : true,
+      avatar: vendorData.avatar || getServiceAvatar(vendorData.service)
     }
-    await vendorsApi.create(newVendor)
+
+    // Call dedicated register endpoint on backend (saves to db.json with hashed password)
+    const response = await apiCall('/vendors/register', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+
+    const newVendor = response.vendor || response
+
+    // Cache locally for immediate UI availability across tabs
+    const list = getLocalCollection('vendors')
+    saveLocalCollection('vendors', [...list.filter(v => String(v.id) !== String(newVendor.id)), newVendor])
+
     return newVendor
   },
 
   /**
    * Login a vendor by email and password.
+   * First tries backend authentication POST /api/vendors/login (checks db.json + hashed passwords).
+   * Falls back to verified local check if backend is unreachable.
+   * Calls the backend /api/vendors/login which checks hashed passwords.
+   * Falls back to localStorage for offline/seed vendor login.
    */
   login: async (email, password) => {
-    const list = await vendorsApi.getAll()
+    try {
+      const response = await apiCall('/vendors/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      })
+      if (response && response.vendor) {
+        const vendor = response.vendor
+        localStorage.setItem('dw_vendor_loggedIn', 'true')
+        localStorage.setItem('dw_vendor_session', JSON.stringify(vendor))
+        return vendor
+      }
+    } catch (backendErr) {
+      // If backend explicitly rejected credentials (401/403), rethrow immediately
+      if (backendErr.message && (backendErr.message.includes('401') || backendErr.message.includes('403') || backendErr.message.includes('deactivated'))) {
+        throw backendErr
+      }
+      console.warn('Backend login unreachable, trying local cache fallback:', backendErr)
+    }
+
+    // Local fallback for seed / offline vendors
+    // Try the backend login endpoint first
+    try {
+      const result = await apiCall('/vendors/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      if (result && result.vendor) {
+        localStorage.setItem('dw_vendor_loggedIn', 'true');
+        localStorage.setItem('dw_vendor_session', JSON.stringify(result.vendor));
+        return result.vendor;
+      }
+    } catch (err) {
+      // Backend login rejected (wrong password / deactivated) — propagate specific errors
+      if (err.message && (err.message.includes('401') || err.message.includes('Invalid') || err.message.includes('403') || err.message.includes('deactivated'))) {
+        throw new Error('Invalid email or password.');
+      }
+      console.error('Backend login failed, falling back to localStorage:', err.message);
+    }
+
+    // Offline fallback: check localStorage vendors (supports seed vendors with plain passwords)
+    const list = getLocalCollection('vendors');
     const vendor = list.find(
-      v => v.email && v.email.toLowerCase() === email.toLowerCase().trim() && v.password === password
+      v => v.email && v.email.toLowerCase() === email.toLowerCase().trim() && (v.password === password || !v.passwordHash)
     )
     if (!vendor) {
       throw new Error('Invalid email or password.')
+    }
+    if (vendor.accountStatus === 'Inactive') {
+      throw new Error('Your vendor account has been deactivated. Please contact admin.')
     }
     localStorage.setItem('dw_vendor_loggedIn', 'true')
     localStorage.setItem('dw_vendor_session', JSON.stringify(vendor))
@@ -1021,8 +1081,8 @@ export const vendorAuthApi = {
    * Logout the currently logged-in vendor.
    */
   logout: () => {
-    localStorage.removeItem('dw_vendor_loggedIn')
-    localStorage.removeItem('dw_vendor_session')
+    localStorage.removeItem('dw_vendor_loggedIn');
+    localStorage.removeItem('dw_vendor_session');
   },
 
   /**
@@ -1030,31 +1090,31 @@ export const vendorAuthApi = {
    */
   getLoggedInVendor: () => {
     try {
-      const raw = localStorage.getItem('dw_vendor_session')
-      if (raw) return JSON.parse(raw)
+      const raw = localStorage.getItem('dw_vendor_session');
+      if (raw) return JSON.parse(raw);
     } catch (e) { /* ignore */ }
-    return null
+    return null;
   },
 
   /**
    * Check if a vendor is currently logged in.
    */
   isLoggedIn: () => {
-    return localStorage.getItem('dw_vendor_loggedIn') === 'true'
+    return localStorage.getItem('dw_vendor_loggedIn') === 'true';
   },
 
   /**
-   * Refresh session from localStorage (in case vendor data was updated).
+   * Refresh session from backend (in case vendor data was updated).
    */
   refreshSession: async () => {
-    const session = vendorAuthApi.getLoggedInVendor()
-    if (!session) return null
-    const fresh = await vendorsApi.getById(session.id)
+    const session = vendorAuthApi.getLoggedInVendor();
+    if (!session) return null;
+    const fresh = await vendorsApi.getById(session.id);
     if (fresh) {
-      localStorage.setItem('dw_vendor_session', JSON.stringify(fresh))
-      return fresh
+      localStorage.setItem('dw_vendor_session', JSON.stringify(fresh));
+      return fresh;
     }
-    return session
+    return session;
   }
 }
 
@@ -1108,4 +1168,37 @@ export function getBookingVendorCost(booking) {
     return acc + Number(cost)
   }, 0)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Vendor AI Task Generator API (Gemini-powered operations assistant)
+// ─────────────────────────────────────────────────────────────────────────────
+export const vendorAiApi = {
+  /**
+   * Generate service-specific preparation checklist, materials list,
+   * timeline, and instructions for an assigned vendor task via Gemini AI.
+   */
+  generateChecklist: async (payload) => {
+    try {
+      const res = await jsonServer.post('/vendor/task-checklist/generate', payload)
+      return res.data
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Failed to generate AI checklist.'
+      throw new Error(msg)
+    }
+  },
+
+  /**
+   * Update checklist items completion status in db.json
+   */
+  updateChecklist: async (payload) => {
+    try {
+      const res = await jsonServer.put('/vendor/task-checklist/update', payload)
+      return res.data
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Failed to update checklist.'
+      throw new Error(msg)
+    }
+  }
+}
+
 

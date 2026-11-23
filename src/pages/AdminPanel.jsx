@@ -12,7 +12,9 @@ function AdminPanel() {
   const [loginError, setLoginError] = useState('')
 
   // Sidebar navigation & layout state
-  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'all' | 'pending' | 'confirmed' | 'payments' | 'vendors' | 'vendor_mgmt' | 'task_assign' | 'users' | 'inquiries' | 'feedback'
+  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'all' | 'pending' | 'confirmed' | 'payments' | 'vendor_payments' | 'vendors' | 'vendor_mgmt' | 'task_assign' | 'users' | 'inquiries' | 'feedback'
+  const [paymentSubTab, setPaymentSubTab] = useState('customer') // 'customer' | 'vendor'
+  const [vendorPaymentFilter, setVendorPaymentFilter] = useState('all') // 'all' | 'pending' | 'advance_paid' | 'fully_paid'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [viewMode, setViewMode] = useState('table') // 'table' | 'cards'
 
@@ -91,6 +93,12 @@ function AdminPanel() {
 
   // Selected booking for detailed modal
   const [selectedBooking, setSelectedBooking] = useState(null)
+
+  // AI Booking Insights state
+  const [aiSummary, setAiSummary] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [aiModelUsed, setAiModelUsed] = useState('')
 
   // Initial check on mount
   useEffect(() => {
@@ -237,12 +245,12 @@ function AdminPanel() {
   const handleAdminLogout = async () => {
     const confirmed = window.showConfirm
       ? await window.showConfirm({
-          title: 'Confirm Admin Logout',
-          message: 'Are you sure you want to sign out of the <strong>Admin Control Panel</strong>?',
-          confirmText: 'Yes, Sign Out',
-          cancelText: 'Stay in Admin',
-          icon: 'fa-solid fa-arrow-right-from-bracket'
-        })
+        title: 'Confirm Admin Logout',
+        message: 'Are you sure you want to sign out of the <strong>Admin Control Panel</strong>?',
+        confirmText: 'Yes, Sign Out',
+        cancelText: 'Stay in Admin',
+        icon: 'fa-solid fa-arrow-right-from-bracket'
+      })
       : window.confirm('Are you sure you want to log out?')
 
     if (!confirmed) return
@@ -376,7 +384,7 @@ function AdminPanel() {
   const handleDeleteContact = async (contactId) => {
     try {
       await contactsApi.delete(contactId)
-    } catch (e) {}
+    } catch (e) { }
     const filtered = contacts.filter(c => String(c.id) !== String(contactId))
     setContacts(filtered)
     localStorage.setItem('dw_contacts', JSON.stringify(filtered))
@@ -392,7 +400,7 @@ function AdminPanel() {
     const updated = { ...target, status: newStatus }
     try {
       await reviewsApi.update(reviewId, updated)
-    } catch (e) {}
+    } catch (e) { }
     const updatedList = reviews.map(r => String(r.id) === String(reviewId) ? updated : r)
     setReviews(updatedList)
     localStorage.setItem('dw_reviews', JSON.stringify(updatedList))
@@ -407,7 +415,7 @@ function AdminPanel() {
     const updated = { ...target, featured: newFeatured }
     try {
       await reviewsApi.update(reviewId, updated)
-    } catch (e) {}
+    } catch (e) { }
     const updatedList = reviews.map(r => String(r.id) === String(reviewId) ? updated : r)
     setReviews(updatedList)
     localStorage.setItem('dw_reviews', JSON.stringify(updatedList))
@@ -418,20 +426,20 @@ function AdminPanel() {
   const handleDeleteReview = async (reviewId) => {
     const confirmed = window.showConfirm
       ? await window.showConfirm({
-          title: 'Delete Customer Review?',
-          message: 'Are you sure you want to permanently delete this customer feedback? This action cannot be undone.',
-          type: 'danger',
-          confirmText: 'Delete Review',
-          cancelText: 'Keep Review',
-          icon: 'fa-solid fa-trash-can'
-        })
+        title: 'Delete Customer Review?',
+        message: 'Are you sure you want to permanently delete this customer feedback? This action cannot be undone.',
+        type: 'danger',
+        confirmText: 'Delete Review',
+        cancelText: 'Keep Review',
+        icon: 'fa-solid fa-trash-can'
+      })
       : window.confirm('Are you sure you want to permanently delete this customer feedback?')
 
     if (!confirmed) return
 
     try {
       await reviewsApi.delete(reviewId)
-    } catch (e) {}
+    } catch (e) { }
     const filtered = reviews.filter(r => String(r.id) !== String(reviewId))
     setReviews(filtered)
     localStorage.setItem('dw_reviews', JSON.stringify(filtered))
@@ -484,7 +492,7 @@ function AdminPanel() {
       }
       try {
         await reviewsApi.update(editingFeedback.id, updated)
-      } catch (err) {}
+      } catch (err) { }
       const updatedList = reviews.map(r => String(r.id) === String(editingFeedback.id) ? updated : r)
       setReviews(updatedList)
       localStorage.setItem('dw_reviews', JSON.stringify(updatedList))
@@ -497,7 +505,7 @@ function AdminPanel() {
       }
       try {
         await reviewsApi.create(newReview)
-      } catch (err) {}
+      } catch (err) { }
       const updatedList = [newReview, ...reviews]
       setReviews(updatedList)
       localStorage.setItem('dw_reviews', JSON.stringify(updatedList))
@@ -562,6 +570,131 @@ function AdminPanel() {
     return bookings.filter(b => b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid').length
   }, [bookings])
 
+  // All vendor payment allocations across bookings and tasks
+  const vendorPayoutRecords = useMemo(() => {
+    const list = []
+    const seenKeys = new Set()
+
+    // 1. Allocations in bookings
+    const bookingList = bookings || []
+    bookingList.forEach(b => {
+      if (Array.isArray(b.vendorAllocations)) {
+        b.vendorAllocations.forEach(alloc => {
+          const key = `b_${b.id}_v_${alloc.vendorId}_s_${alloc.service || ''}_a_${alloc.allocationId}`
+          seenKeys.add(key)
+          const payout = alloc.payout || {
+            totalCost: 0,
+            advanceAmount: 0,
+            remainingAmount: 0,
+            payoutStatus: 'Pending',
+            advancePaidAt: null,
+            fullyPaidAt: null
+          }
+          list.push({
+            id: alloc.allocationId,
+            allocationId: alloc.allocationId,
+            bookingId: b.id,
+            customerName: b.name || 'Client',
+            customerEmail: b.email || '',
+            customerPhone: b.phone || '',
+            eventDate: b.date || '',
+            venue: b.venue || b.address || '',
+            vendorId: alloc.vendorId,
+            vendorName: alloc.vendorName || 'Vendor',
+            vendorEmail: alloc.vendorEmail || '',
+            vendorPhone: alloc.vendorPhone || '',
+            service: alloc.service || b.service || 'Service',
+            taskStatus: alloc.status || 'Accepted',
+            payout: {
+              totalCost: Number(payout.totalCost) || (Number(payout.advanceAmount || 0) + Number(payout.remainingAmount || 0)) || 0,
+              advanceAmount: Number(payout.advanceAmount || 0),
+              remainingAmount: Number(payout.remainingAmount || 0),
+              payoutStatus: payout.payoutStatus || 'Pending',
+              advancePaidAt: payout.advancePaidAt || null,
+              fullyPaidAt: payout.fullyPaidAt || null
+            },
+            rawBooking: b
+          })
+        })
+      }
+    })
+
+    // 2. Vendor tasks not yet in bookings.vendorAllocations
+    const taskList = vendorTasks || []
+    taskList.forEach(t => {
+      const matchesExisting = list.some(r =>
+        (r.bookingId && t.bookingId && String(r.bookingId) === String(t.bookingId) && String(r.vendorId) === String(t.vendorId)) ||
+        String(r.allocationId) === String(t.id)
+      )
+      if (!matchesExisting && t.status !== 'Declined' && t.status !== 'Rejected' && (t.vendorResponse === 'YES' || t.status === 'Approved')) {
+        const total = Number(t.totalCost) || (Number(t.advanceAmount || 0) + Number(t.remainingAmount || 0)) || Number(t.advanceAmount || 0)
+        const adv = Number(t.advanceAmount || 0)
+        const rem = Number(t.remainingAmount || (total > adv ? total - adv : 0))
+        list.push({
+          id: t.id,
+          allocationId: t.id,
+          bookingId: t.bookingId || t.id,
+          customerName: t.customerName || 'Client',
+          customerEmail: t.customerEmail || '',
+          customerPhone: t.customerPhone || '',
+          eventDate: t.eventDate || '',
+          venue: t.venue || '',
+          vendorId: t.vendorId,
+          vendorName: t.vendorName || 'Vendor',
+          vendorEmail: t.vendorEmail || '',
+          vendorPhone: t.vendorPhone || '',
+          service: t.service || 'Service',
+          taskStatus: t.status || 'Accepted',
+          payout: {
+            totalCost: total,
+            advanceAmount: adv,
+            remainingAmount: rem,
+            payoutStatus: t.payoutStatus || 'Pending',
+            advancePaidAt: t.advancePaidAt || null,
+            fullyPaidAt: t.fullyPaidAt || null
+          },
+          _fromTaskOnly: true,
+          rawTask: t
+        })
+      }
+    })
+
+    return list
+  }, [bookings, vendorTasks])
+
+  const vendorAdvancePaidCount = useMemo(() => {
+    return vendorPayoutRecords.filter(r => r.payout.payoutStatus === 'Advance Paid' || r.payout.payoutStatus === 'Fully Paid').length
+  }, [vendorPayoutRecords])
+
+  const vendorFullyPaidCount = useMemo(() => {
+    return vendorPayoutRecords.filter(r => r.payout.payoutStatus === 'Fully Paid').length
+  }, [vendorPayoutRecords])
+
+  const vendorPendingCount = useMemo(() => {
+    return vendorPayoutRecords.filter(r => r.payout.payoutStatus === 'Pending' || !r.payout.payoutStatus).length
+  }, [vendorPayoutRecords])
+
+  const filteredVendorPayoutRecords = useMemo(() => {
+    let list = vendorPayoutRecords
+    if (vendorPaymentFilter === 'pending') {
+      list = list.filter(r => r.payout.payoutStatus === 'Pending' || !r.payout.payoutStatus)
+    } else if (vendorPaymentFilter === 'advance_paid') {
+      list = list.filter(r => r.payout.payoutStatus === 'Advance Paid')
+    } else if (vendorPaymentFilter === 'fully_paid') {
+      list = list.filter(r => r.payout.payoutStatus === 'Fully Paid')
+    }
+    const q = searchQuery.toLowerCase().trim()
+    if (q) {
+      list = list.filter(r =>
+        (r.customerName && r.customerName.toLowerCase().includes(q)) ||
+        (r.vendorName && r.vendorName.toLowerCase().includes(q)) ||
+        (r.service && r.service.toLowerCase().includes(q)) ||
+        String(r.bookingId).toLowerCase().includes(q)
+      )
+    }
+    return list
+  }, [vendorPayoutRecords, vendorPaymentFilter, searchQuery])
+
   // Extract unique services for dropdown filter
   const serviceOptions = useMemo(() => {
     const set = new Set()
@@ -625,6 +758,134 @@ function AdminPanel() {
   const expectedProfit = totalCustomerRevenue - totalVendorCost
   const profitMargin = totalCustomerRevenue > 0 ? Math.round((expectedProfit / totalCustomerRevenue) * 100) : 0
 
+  // Generate AI Booking Summary from current aggregated booking stats
+  const handleGenerateAiSummary = async () => {
+    setAiLoading(true)
+    setAiError('')
+    try {
+      // Build safe service count breakdown
+      const serviceCountMap = {}
+      bookings.forEach(b => {
+        if (b.service) {
+          serviceCountMap[b.service] = (serviceCountMap[b.service] || 0) + 1
+        }
+      })
+      const serviceBreakdown = Object.entries(serviceCountMap).map(([service, count]) => ({ service, count }))
+
+      // Extract unique recent dates (chronological order)
+      const recentBookingDates = Array.from(new Set(
+        bookings
+          .map(b => b.date)
+          .filter(Boolean)
+          .sort()
+          .reverse()
+      )).slice(0, 5)
+
+      const rejectedCount = bookings.filter(b => b.bookingStatus === 'rejected').length
+
+      // Aggregate statistics payload (strictly anonymized aggregates)
+      const payload = {
+        totalBookings: totalCount,
+        confirmedBookings: confirmedCount,
+        pendingBookings: pendingCount,
+        rejectedBookings: rejectedCount,
+        advancePaidBookings: advancePaidCount,
+        fullyPaidBookings: fullyPaidCount,
+        totalCustomerRevenue: totalCustomerRevenue,
+        totalVendorCost: totalVendorCost,
+        expectedProfit: expectedProfit,
+        profitMargin: profitMargin,
+        serviceBreakdown,
+        recentBookingDates
+      }
+
+      const backendUrl = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:5000'
+      const res = await fetch(`${backendUrl}/api/admin/booking-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || `Server responded with status ${res.status}`)
+      }
+
+      const data = await res.json()
+      if (!data || !data.success || !data.summary) {
+        throw new Error(data.error || 'Invalid response received from AI summary service.')
+      }
+
+      setAiSummary(data.summary)
+      setAiModelUsed(data.modelUsed || '')
+    } catch (err) {
+      console.error('Error generating AI booking summary:', err)
+      setAiError(err.message || 'Failed to generate AI booking summary. Please ensure the backend is running.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  // Safe and clean Markdown formatter for AI report
+  const renderAiSummary = (text) => {
+    if (!text) return null
+    const lines = text.split('\n')
+    return lines.map((line, idx) => {
+      const trimmed = line.trim()
+      if (!trimmed) {
+        return <div key={idx} style={{ height: '6px' }} />
+      }
+
+      const formatBold = (str) => {
+        const parts = str.split(/(\*\*.*?\*\*)/g)
+        return parts.map((part, pIdx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={pIdx} style={{ color: '#0f172a', fontWeight: 700 }}>{part.slice(2, -2)}</strong>
+          }
+          return part
+        })
+      }
+
+      if (trimmed.startsWith('# ')) {
+        return (
+          <h3 key={idx} style={{ margin: '14px 0 8px 0', fontSize: '1.18rem', fontWeight: 800, color: '#0f172a', borderBottom: '2px solid #e2e8f0', paddingBottom: '6px' }}>
+            {formatBold(trimmed.slice(2))}
+          </h3>
+        )
+      }
+      if (trimmed.startsWith('## ')) {
+        return (
+          <h4 key={idx} style={{ margin: '16px 0 6px 0', fontSize: '1.02rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ display: 'inline-block', width: '4px', height: '16px', background: '#b8860b', borderRadius: '2px' }}></span>
+            {formatBold(trimmed.slice(3))}
+          </h4>
+        )
+      }
+      if (trimmed.startsWith('### ')) {
+        return (
+          <h5 key={idx} style={{ margin: '10px 0 4px 0', fontSize: '0.92rem', fontWeight: 700, color: '#334155' }}>
+            {formatBold(trimmed.slice(4))}
+          </h5>
+        )
+      }
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        return (
+          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '4px 0', paddingLeft: '8px', color: '#334155', fontSize: '0.9rem', lineHeight: '1.55' }}>
+            <span style={{ color: '#b8860b', fontWeight: 'bold', marginTop: '1px' }}>•</span>
+            <div>{formatBold(trimmed.slice(2))}</div>
+          </div>
+        )
+      }
+      return (
+        <p key={idx} style={{ margin: '6px 0', color: '#334155', fontSize: '0.9rem', lineHeight: '1.6' }}>
+          {formatBold(trimmed)}
+        </p>
+      )
+    })
+  }
+
   // Remove a vendor from a booking (e.g. to undo a mistaken approval).
   // Vendors are attached to a booking only via the Assign & Approve Vendors
   // workflow (see VendorTaskAssignment) — there is no separate manual
@@ -659,45 +920,131 @@ function AdminPanel() {
 
   // Update Vendor Payout status
   const handleUpdateVendorPayout = async (bookingId, allocationId, newStatus) => {
-    const target = bookings.find(b => String(b.id) === String(bookingId))
-    if (!target) return
+    let updatedBooking = null
 
-    const updatedAllocations = (target.vendorAllocations || []).map(alloc => {
-      if (alloc.allocationId === allocationId) {
-        return {
-          ...alloc,
-          payout: {
-            ...alloc.payout,
-            payoutStatus: newStatus,
-            advancePaidAt: newStatus === 'Advance Paid' || newStatus === 'Fully Paid' ? (alloc.payout?.advancePaidAt || new Date().toISOString()) : null,
-            fullyPaidAt: newStatus === 'Fully Paid' ? new Date().toISOString() : null
+    // 1. Update in bookings.vendorAllocations
+    const updatedBookings = bookings.map(b => {
+      if (String(b.id) === String(bookingId)) {
+        const updatedAllocations = (b.vendorAllocations || []).map(alloc => {
+          if (alloc.allocationId === allocationId || String(alloc.vendorId) === String(allocationId)) {
+            const prevPayout = alloc.payout || {}
+            return {
+              ...alloc,
+              payout: {
+                ...prevPayout,
+                payoutStatus: newStatus,
+                advancePaidAt: (newStatus === 'Advance Paid' || newStatus === 'Fully Paid')
+                  ? (prevPayout.advancePaidAt || new Date().toISOString())
+                  : null,
+                fullyPaidAt: newStatus === 'Fully Paid'
+                  ? (prevPayout.fullyPaidAt || new Date().toISOString())
+                  : null
+              }
+            }
           }
+          return alloc
+        })
+        updatedBooking = {
+          ...b,
+          vendorAllocations: updatedAllocations,
+          updatedAt: new Date().toISOString()
         }
+        return updatedBooking
       }
-      return alloc
+      return b
     })
 
-    const updated = {
-      ...target,
-      vendorAllocations: updatedAllocations,
-      updatedAt: new Date().toISOString()
+    setBookings(updatedBookings)
+    localStorage.setItem('dw_bookings', JSON.stringify(updatedBookings))
+
+    if (updatedBooking) {
+      try {
+        await bookingsApi.update(bookingId, updatedBooking)
+      } catch (err) {
+        console.warn('Booking payout sync warning:', err)
+      }
     }
 
-    const updatedList = bookings.map(b => String(b.id) === String(bookingId) ? updated : b)
-    setBookings(updatedList)
-    localStorage.setItem('dw_bookings', JSON.stringify(updatedList))
+    // 2. Also synchronize vendorTasks so vendor portal gets the update immediately
+    const updatedTasks = (vendorTasks || []).map(vt => {
+      if (
+        (vt.bookingId && String(vt.bookingId) === String(bookingId)) ||
+        String(vt.id) === String(allocationId)
+      ) {
+        const updatedTask = {
+          ...vt,
+          payoutStatus: newStatus,
+          advancePaidAt: (newStatus === 'Advance Paid' || newStatus === 'Fully Paid')
+            ? (vt.advancePaidAt || new Date().toISOString())
+            : null,
+          fullyPaidAt: newStatus === 'Fully Paid'
+            ? (vt.fullyPaidAt || new Date().toISOString())
+            : null
+        }
+        vendorTasksApi.update(vt.id, updatedTask).catch(err => console.warn('VendorTask sync err:', err))
+        return updatedTask
+      }
+      return vt
+    })
 
-    if (selectedBooking && String(selectedBooking.id) === String(bookingId)) {
-      setSelectedBooking(updated)
+    setVendorTasks(updatedTasks)
+    localStorage.setItem('dw_vendorTasks', JSON.stringify(updatedTasks))
+
+    if (selectedBooking && String(selectedBooking.id) === String(bookingId) && updatedBooking) {
+      setSelectedBooking(updatedBooking)
     }
 
-    try {
-      await bookingsApi.update(bookingId, updated)
-    } catch (err) {
-      console.warn('API sync warning:', err)
-    }
+    showNotification(`Vendor payment marked as ${newStatus} for Booking #${String(bookingId).slice(-6)}`)
+  }
 
-    showNotification(`Vendor payout marked as ${newStatus} for Booking #${String(bookingId).slice(-6)}`)
+  // ==============================================================
+  // DATE HELPERS – function date deadlines
+  // ==============================================================
+  /**
+   * Parse a booking's date string into a JS Date object.
+   * Handles:
+   *   "2026-10-15"  → standard ISO date
+   *   "June 2024"   → first day of that month
+   *   anything else → null (unparseable / TBD)
+   */
+  const parseFunctionDate = (dateStr) => {
+    if (!dateStr || dateStr === 'TBD') return null
+    // ISO / YYYY-MM-DD
+    const iso = new Date(dateStr)
+    if (!isNaN(iso.getTime())) return iso
+    // "Month YYYY" e.g. "June 2024"
+    const monthYear = new Date(`1 ${dateStr}`)
+    if (!isNaN(monthYear.getTime())) return monthYear
+    return null
+  }
+
+  /**
+   * Returns true if the function date has PASSED and payment is 100% done.
+   */
+  const isFunctionDoneCheck = (b) => {
+    const fnDate = parseFunctionDate(b.date)
+    if (!fnDate) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const eventPassed = fnDate < today
+    const fullyPaid = !!(b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid')
+    return eventPassed && fullyPaid
+  }
+
+  /**
+   * Returns true if admin is allowed to edit:
+   *   - Function date is > 1 month away (or unknown)
+   *   - AND function date has not passed
+   */
+  const canEditBookingCheck = (b) => {
+    const fnDate = parseFunctionDate(b.date)
+    if (!fnDate) return true // unknown date – allow edit
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (fnDate <= today) return false // event already passed
+    const oneMonthFromNow = new Date(today)
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
+    return fnDate > oneMonthFromNow // more than 1 month away
   }
 
   // ==============================================================
@@ -754,7 +1101,7 @@ function AdminPanel() {
             </div>
 
             <button type="submit" className="dw-btn-login">
-              <i className="fa-solid fa-lock-open"></i> Sign In to Admin Console
+              <i className="fa-solid fa-lock-open"></i> Sign In
             </button>
           </form>
 
@@ -784,9 +1131,6 @@ function AdminPanel() {
         <div className="dw-sidebar-header">
           <Link to="/" className="dw-sidebar-brand" title="Visit Dream Wedding Homepage">
             <img src="/images/logo.svg" alt="Dream Wedding Logo" className="dw-sidebar-logo-img" />
-            <span className="dw-sidebar-badge">
-              <i className="fa-solid fa-lock" style={{ fontSize: '0.65rem' }}></i> Admin Console
-            </span>
           </Link>
           <button className="dw-sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
             <i className="fa-solid fa-xmark"></i>
@@ -848,15 +1192,34 @@ function AdminPanel() {
             <li>
               <div
                 className={`dw-nav-item ${activeTab === 'payments' ? 'active' : ''}`}
-                onClick={() => handleTabChange('payments')}
+                onClick={() => {
+                  setPaymentSubTab('customer')
+                  handleTabChange('payments')
+                }}
               >
                 <div className="dw-nav-item-left">
                   <i className="fa-solid fa-credit-card"></i>
-                  <span>Payments Tracker</span>
+                  <span>Customer Payments</span>
                 </div>
                 <span className="dw-badge-pill dw-badge-neutral">
                   {advancePaidCount + fullyPaidCount}
                 </span>
+              </div>
+            </li>
+            <li>
+              <div
+                className={`dw-nav-item ${activeTab === 'vendor_payments' ? 'active' : ''}`}
+                onClick={() => handleTabChange('vendor_payments')}
+              >
+                <div className="dw-nav-item-left">
+                  <i className="fa-solid fa-money-bill-transfer" style={{ color: '#10b981' }}></i>
+                  <span>Vendor Payments</span>
+                </div>
+                {vendorPayoutRecords.length > 0 && (
+                  <span className="dw-badge-pill dw-badge-neutral">
+                    {vendorPayoutRecords.length}
+                  </span>
+                )}
               </div>
             </li>
             <li>
@@ -957,523 +1320,736 @@ function AdminPanel() {
           )}
 
 
-              {/* ==============================================================
+          {/* ==============================================================
                   TAB 1: OVERVIEW DASHBOARD
                   ============================================================== */}
-              {activeTab === 'overview' && (
-                <>
-                  {/* KPI Stat Cards */}
-                  <div className="dw-stats-grid">
-                    <div className="dw-stat-card card-total">
-                      <div className="dw-stat-info">
-                        <span className="dw-stat-label">Total Reservations</span>
-                        <span className="dw-stat-number">{totalCount}</span>
-                        <span className="dw-stat-subtext">All time bookings placed</span>
-                      </div>
-                      <div className="dw-stat-icon">
-                        <i className="fa-solid fa-calendar-days"></i>
-                      </div>
-                    </div>
+          {activeTab === 'overview' && (
+            <>
+              {/* KPI Stat Cards */}
+              <div className="dw-stats-grid">
+                <div className="dw-stat-card card-total">
+                  <div className="dw-stat-info">
+                    <span className="dw-stat-label">Total Reservations</span>
+                    <span className="dw-stat-number">{totalCount}</span>
+                    <span className="dw-stat-subtext">All time bookings placed</span>
+                  </div>
+                  <div className="dw-stat-icon">
+                    <i className="fa-solid fa-calendar-days"></i>
+                  </div>
+                </div>
 
-                    <div className="dw-stat-card card-pending">
-                      <div className="dw-stat-info">
-                        <span className="dw-stat-label">Awaiting Approval</span>
-                        <span className="dw-stat-number">{pendingCount}</span>
-                        <span className="dw-stat-subtext">Requires admin review</span>
-                      </div>
-                      <div className="dw-stat-icon">
-                        <i className="fa-solid fa-clock-rotate-left"></i>
-                      </div>
-                    </div>
+                <div className="dw-stat-card card-pending">
+                  <div className="dw-stat-info">
+                    <span className="dw-stat-label">Awaiting Approval</span>
+                    <span className="dw-stat-number">{pendingCount}</span>
+                    <span className="dw-stat-subtext">Requires admin review</span>
+                  </div>
+                  <div className="dw-stat-icon">
+                    <i className="fa-solid fa-clock-rotate-left"></i>
+                  </div>
+                </div>
 
-                    <div className="dw-stat-card card-confirmed">
-                      <div className="dw-stat-info">
-                        <span className="dw-stat-label">Confirmed Bookings</span>
-                        <span className="dw-stat-number">{confirmedCount}</span>
-                        <span className="dw-stat-subtext">Ready / In-progress</span>
-                      </div>
-                      <div className="dw-stat-icon">
-                        <i className="fa-solid fa-circle-check"></i>
-                      </div>
-                    </div>
+                <div className="dw-stat-card card-confirmed">
+                  <div className="dw-stat-info">
+                    <span className="dw-stat-label">Confirmed Bookings</span>
+                    <span className="dw-stat-number">{confirmedCount}</span>
+                    <span className="dw-stat-subtext">Ready / In-progress</span>
+                  </div>
+                  <div className="dw-stat-icon">
+                    <i className="fa-solid fa-circle-check"></i>
+                  </div>
+                </div>
 
-                    <div className="dw-stat-card card-revenue">
-                      <div className="dw-stat-info">
-                        <span className="dw-stat-label">Paid Milestones</span>
-                        <span className="dw-stat-number">{advancePaidCount + fullyPaidCount}</span>
-                        <span className="dw-stat-subtext">{advancePaidCount} Advance &bull; {fullyPaidCount} Full</span>
-                      </div>
-                      <div className="dw-stat-icon">
-                        <i className="fa-solid fa-indian-rupee-sign"></i>
-                      </div>
-                    </div>
+                <div className="dw-stat-card card-revenue">
+                  <div className="dw-stat-info">
+                    <span className="dw-stat-label">Paid Milestones</span>
+                    <span className="dw-stat-number">{advancePaidCount + fullyPaidCount}</span>
+                    <span className="dw-stat-subtext">{advancePaidCount} Advance &bull; {fullyPaidCount} Full</span>
+                  </div>
+                  <div className="dw-stat-icon">
+                    <i className="fa-solid fa-indian-rupee-sign"></i>
+                  </div>
+                </div>
 
-                    <div className="dw-stat-card" style={{ cursor: 'pointer', borderLeft: '4px solid #f59e0b' }} onClick={() => handleTabChange('feedback')}>
-                      <div className="dw-stat-info">
-                        <span className="dw-stat-label">Client Feedbacks</span>
-                        <span className="dw-stat-number">{reviews.length} <span style={{ fontSize: '0.88rem', color: '#d97706', fontWeight: 600 }}>({averageRating} ★)</span></span>
-                        <span className="dw-stat-subtext">{featuredReviewsCount} Featured &bull; {fiveStarReviewsCount} 5-Star</span>
-                      </div>
-                      <div className="dw-stat-icon" style={{ color: '#d97706', background: '#fef3c7' }}>
-                        <i className="fa-solid fa-star"></i>
-                      </div>
+                <div className="dw-stat-card" style={{ cursor: 'pointer', borderLeft: '4px solid #f59e0b' }} onClick={() => handleTabChange('feedback')}>
+                  <div className="dw-stat-info">
+                    <span className="dw-stat-label">Client Feedbacks</span>
+                    <span className="dw-stat-number">{reviews.length} <span style={{ fontSize: '0.88rem', color: '#d97706', fontWeight: 600 }}>({averageRating} ★)</span></span>
+                    <span className="dw-stat-subtext">{featuredReviewsCount} Featured &bull; {fiveStarReviewsCount} 5-Star</span>
+                  </div>
+                  <div className="dw-stat-icon" style={{ color: '#d97706', background: '#fef3c7' }}>
+                    <i className="fa-solid fa-star"></i>
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Profit & Financial Analytics Banner */}
+              <div className="dw-profit-banner">
+                <div className="dw-profit-banner-header">
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(212, 175, 55, 0.2)', color: '#facc15', border: '1px solid rgba(212, 175, 55, 0.4)', padding: '3px 10px', borderRadius: '20px', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>
+                      <i className="fa-solid fa-chart-line"></i> Financial Intelligence
+                    </div>
+                    <h3 style={{ margin: '4px 0 0 0', color: '#fff', fontSize: '1.25rem', fontWeight: 800 }}>
+                      Admin Revenue & Profit Analytics
+                    </h3>
+                  </div>
+                  <div>
+                    <button
+                      className="dw-topbar-btn"
+                      onClick={() => handleTabChange('vendors')}
+                      style={{ background: '#b8860b', borderColor: '#b8860b', color: '#fff' }}
+                    >
+                      <i className="fa-solid fa-handshake" style={{ marginRight: '6px' }}></i> Manage Vendor Allocations
+                    </button>
+                  </div>
+                </div>
+
+                <div className="dw-profit-formula-strip">
+                  <div className="dw-profit-node revenue">
+                    <div className="dw-node-label">
+                      <i className="fa-solid fa-wallet" style={{ color: '#38bdf8' }}></i> Customer Revenue
+                    </div>
+                    <div className="dw-node-val">
+                      ₹{Number(totalCustomerRevenue).toLocaleString('en-IN')}
+                    </div>
+                    <div className="dw-node-sub">From {paidBookings.length} paid reservations</div>
+                  </div>
+
+                  <div className="dw-formula-op">−</div>
+
+                  <div className="dw-profit-node cost">
+                    <div className="dw-node-label">
+                      <i className="fa-solid fa-handshake" style={{ color: '#f87171' }}></i> Total Vendor Cost
+                    </div>
+                    <div className="dw-node-val">
+                      ₹{Number(totalVendorCost).toLocaleString('en-IN')}
+                    </div>
+                    <div className="dw-node-sub">Allocated wedding vendors</div>
+                  </div>
+
+                  <div className="dw-formula-op">=</div>
+
+                  <div className="dw-profit-node profit">
+                    <div className="dw-node-label">
+                      <i className="fa-solid fa-sack-dollar" style={{ color: '#4ade80' }}></i> Expected Profit
+                    </div>
+                    <div className="dw-node-val" style={{ color: expectedProfit >= 0 ? '#4ade80' : '#f87171' }}>
+                      ₹{Number(expectedProfit).toLocaleString('en-IN')}
+                    </div>
+                    <div className="dw-node-sub" style={{ color: '#86efac', fontWeight: 700 }}>
+                      {profitMargin}% Expected Gross Margin
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Booking Insights Card (Admin Overview Tab) */}
+              <div className="dw-panel-card" style={{ marginBottom: '28px', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)' }}>
+                <div
+                  className="dw-panel-header"
+                  style={{
+                    background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                    padding: '18px 24px',
+                    borderBottom: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                        color: '#b8860b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.25rem',
+                        boxShadow: '0 2px 8px rgba(184, 134, 11, 0.15)'
+                      }}
+                    >
+                      <i className="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
+                        AI Booking Insights
+                      </h3>
+                      <p style={{ margin: '3px 0 0 0', fontSize: '0.86rem', color: '#64748b' }}>
+                        Get intelligent insights into your booking performance.
+                      </p>
                     </div>
                   </div>
 
-                  {/* Admin Profit & Financial Analytics Banner */}
-                  <div className="dw-profit-banner">
-                    <div className="dw-profit-banner-header">
-                      <div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(212, 175, 55, 0.2)', color: '#facc15', border: '1px solid rgba(212, 175, 55, 0.4)', padding: '3px 10px', borderRadius: '20px', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>
-                          <i className="fa-solid fa-chart-line"></i> Financial Intelligence
-                        </div>
-                        <h3 style={{ margin: '4px 0 0 0', color: '#fff', fontSize: '1.25rem', fontWeight: 800 }}>
-                          Admin Revenue & Profit Analytics
-                        </h3>
+                  <button
+                    className="dw-topbar-btn"
+                    onClick={handleGenerateAiSummary}
+                    disabled={aiLoading}
+                    style={{
+                      background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, #b8860b 0%, #d4af37 100%)',
+                      borderColor: aiLoading ? '#94a3b8' : '#b8860b',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      padding: '10px 18px',
+                      borderRadius: '10px',
+                      boxShadow: '0 2px 8px rgba(184, 134, 11, 0.25)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: aiLoading ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {aiLoading ? (
+                      <>
+                        <i className="fa-solid fa-circle-notch fa-spin"></i> Analyzing booking data...
+                      </>
+                    ) : aiSummary ? (
+                      <>
+                        <i className="fa-solid fa-arrows-rotate"></i> Regenerate Summary
+                      </>
+                    ) : (
+                      <>
+                        <span>✨</span> Generate AI Summary
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div style={{ padding: '24px' }}>
+                  {aiError && (
+                    <div
+                      style={{
+                        padding: '14px 18px',
+                        borderRadius: '10px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#b91c1c',
+                        fontSize: '0.88rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        marginBottom: aiSummary ? '16px' : 0
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '1.1rem' }}></i>
+                        <span>{aiError}</span>
                       </div>
-                      <div>
-                        <button
-                          className="dw-topbar-btn"
-                          onClick={() => handleTabChange('vendors')}
-                          style={{ background: '#b8860b', borderColor: '#b8860b', color: '#fff' }}
-                        >
-                          <i className="fa-solid fa-handshake" style={{ marginRight: '6px' }}></i> Manage Vendor Allocations
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="dw-profit-formula-strip">
-                      <div className="dw-profit-node revenue">
-                        <div className="dw-node-label">
-                          <i className="fa-solid fa-wallet" style={{ color: '#38bdf8' }}></i> Customer Revenue
-                        </div>
-                        <div className="dw-node-val">
-                          ₹{Number(totalCustomerRevenue).toLocaleString('en-IN')}
-                        </div>
-                        <div className="dw-node-sub">From {paidBookings.length} paid reservations</div>
-                      </div>
-
-                      <div className="dw-formula-op">−</div>
-
-                      <div className="dw-profit-node cost">
-                        <div className="dw-node-label">
-                          <i className="fa-solid fa-handshake" style={{ color: '#f87171' }}></i> Total Vendor Cost
-                        </div>
-                        <div className="dw-node-val">
-                          ₹{Number(totalVendorCost).toLocaleString('en-IN')}
-                        </div>
-                        <div className="dw-node-sub">Allocated wedding vendors</div>
-                      </div>
-
-                      <div className="dw-formula-op">=</div>
-
-                      <div className="dw-profit-node profit">
-                        <div className="dw-node-label">
-                          <i className="fa-solid fa-sack-dollar" style={{ color: '#4ade80' }}></i> Expected Profit
-                        </div>
-                        <div className="dw-node-val" style={{ color: expectedProfit >= 0 ? '#4ade80' : '#f87171' }}>
-                          ₹{Number(expectedProfit).toLocaleString('en-IN')}
-                        </div>
-                        <div className="dw-node-sub" style={{ color: '#86efac', fontWeight: 700 }}>
-                          {profitMargin}% Expected Gross Margin
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Urgent Queue: Bookings Needing Approval */}
-                  {pendingCount > 0 && (
-                    <div className="dw-queue-section">
-                      <div className="dw-queue-header">
-                        <div className="dw-queue-title">
-                          <i className="fa-solid fa-bell" style={{ color: '#d97706', fontSize: '1.2rem' }}></i>
-                          <h3>Action Needed: Approvals Queue</h3>
-                        </div>
-                        <span className="dw-queue-tag">{pendingCount} Pending</span>
-                      </div>
-
-                      <div className="dw-queue-grid">
-                        {pendingBookings.slice(0, 6).map((b) => (
-                          <div key={b.id} className="dw-queue-card">
-                            <div className="dw-queue-card-top">
-                              <div className="dw-queue-client">
-                                <h4>{b.name || 'Client Reservation'}</h4>
-                                <span>{b.email} &bull; {b.phone || 'No phone'}</span>
-                              </div>
-                              <span className="dw-queue-service">{b.service}</span>
-                            </div>
-
-                            <div className="dw-queue-details">
-                              <span><i className="fa-solid fa-calendar"></i> {b.date || 'TBD'}</span>
-                              <span><i className="fa-solid fa-location-dot"></i> {b.venue || b.address || 'Venue TBD'}</span>
-                              <span><i className="fa-solid fa-wallet"></i> {b.budget || 'Custom'}</span>
-                            </div>
-
-                            <div className="dw-queue-actions">
-                              <button
-                                className="dw-btn-approve-quick"
-                                onClick={() => handleUpdateStatus(b.id, 'confirmed')}
-                                title="Confirm and unlock payment for user"
-                              >
-                                <i className="fa-solid fa-check"></i> Approve
-                              </button>
-                              <button
-                                className="dw-btn-reject-quick"
-                                onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                              >
-                                <i className="fa-solid fa-xmark"></i> Reject
-                              </button>
-                              <button
-                                className="dw-btn-action"
-                                onClick={() => setSelectedBooking(b)}
-                                title="View details"
-                              >
-                                <i className="fa-solid fa-eye"></i>
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <button
+                        onClick={handleGenerateAiSummary}
+                        disabled={aiLoading}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#b91c1c',
+                          textDecoration: 'underline',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        Try Again
+                      </button>
                     </div>
                   )}
 
-                  {/* Recent Bookings Quick Table */}
-                  <div className="dw-panel-card">
-                    <div className="dw-panel-header">
-                      <div className="dw-panel-title-area">
-                        <i className="fa-solid fa-list-check" style={{ color: '#b8860b' }}></i>
-                        <h3>Recent Client Reservations</h3>
-                      </div>
+                  {aiLoading && !aiSummary && (
+                    <div
+                      style={{
+                        padding: '36px 20px',
+                        textAlign: 'center',
+                        color: '#64748b'
+                      }}
+                    >
+                      <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#b8860b', marginBottom: '12px' }}></i>
+                      <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Analyzing booking data...</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#94a3b8' }}>Synthesizing revenue, capacity, and service metrics with Gemini AI.</p>
+                    </div>
+                  )}
+
+                  {!aiLoading && !aiSummary && !aiError && (
+                    <div
+                      style={{
+                        padding: '32px 20px',
+                        textAlign: 'center',
+                        color: '#64748b',
+                        background: '#f8fafc',
+                        borderRadius: '12px',
+                        border: '1px dashed #cbd5e1'
+                      }}
+                    >
+                      <i className="fa-solid fa-chart-pie" style={{ fontSize: '2.2rem', color: '#cbd5e1', marginBottom: '12px' }}></i>
+                      <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '1rem', fontWeight: 700 }}>No AI Summary Generated Yet</h4>
+                      <p style={{ margin: '0 auto 16px auto', maxWidth: '440px', fontSize: '0.86rem', color: '#64748b' }}>
+                        Click "Generate AI Summary" above to have Gemini AI analyze your reservations, revenue health, and popular packages.
+                      </p>
                       <button
                         className="dw-topbar-btn"
-                        onClick={() => handleTabChange('all')}
+                        onClick={handleGenerateAiSummary}
+                        style={{
+                          background: 'linear-gradient(135deg, #b8860b 0%, #d4af37 100%)',
+                          borderColor: '#b8860b',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
                       >
-                        View All Bookings <i className="fa-solid fa-arrow-right" style={{ marginLeft: '4px' }}></i>
+                        <span>✨</span> Generate AI Summary
                       </button>
                     </div>
+                  )}
 
-                    <div className="dw-table-wrapper">
-                      <table className="dw-table">
-                        <thead>
-                          <tr>
-                            <th>Client</th>
-                            <th>Service & Event</th>
-                            <th>Event Date</th>
-                            <th>Budget</th>
-                            <th>Approval Status</th>
-                            <th>Payment</th>
-                            <th>Quick Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {bookings.slice(0, 8).map((b) => {
-                            const isConfirmed = b.bookingStatus === 'confirmed'
-                            const isRejected = b.bookingStatus === 'rejected'
-                            const isPending = !isConfirmed && !isRejected
-
-                            const isFullyPaid = b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid'
-                            const isAdvancePaid = !isFullyPaid && (b.advancePaid || b.paymentStatus === 'Advance Paid')
-
-                            return (
-                              <tr key={b.id} className={isPending ? 'row-needs-attention' : ''}>
-                                <td>
-                                  <div className="dw-cell-client">
-                                    <div className="dw-client-avatar-mini">
-                                      <i className="fa-solid fa-user"></i>
-                                    </div>
-                                    <div>
-                                      <div className="dw-client-name">{b.name || 'Client'}</div>
-                                      <div className="dw-client-sub">{b.email}</div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <strong>{b.service}</strong>
-                                  <div className="dw-client-sub">{b.eventType || 'Wedding Event'}</div>
-                                </td>
-                                <td>{b.date || 'TBD'}</td>
-                                <td>{b.budget || 'Custom'}</td>
-                                <td>
-                                  {isConfirmed && (
-                                    <span className="dw-status-tag status-confirmed">
-                                      <i className="fa-solid fa-circle-check"></i> Confirmed
-                                    </span>
-                                  )}
-                                  {isPending && (
-                                    <span className="dw-status-tag status-pending">
-                                      <i className="fa-solid fa-clock"></i> Needs Approval
-                                    </span>
-                                  )}
-                                  {isRejected && (
-                                    <span className="dw-status-tag status-rejected">
-                                      <i className="fa-solid fa-ban"></i> Rejected
-                                    </span>
-                                  )}
-                                </td>
-                                <td>
-                                  {isFullyPaid && (
-                                    <span className="dw-pay-tag pay-fully">
-                                      <i className="fa-solid fa-receipt"></i> Fully Paid
-                                    </span>
-                                  )}
-                                  {isAdvancePaid && (
-                                    <span className="dw-pay-tag pay-advance">
-                                      <i className="fa-solid fa-hourglass-half"></i> 50% Advance
-                                    </span>
-                                  )}
-                                  {!isFullyPaid && !isAdvancePaid && (
-                                    <span className="dw-pay-tag pay-unpaid">
-                                      <i className="fa-solid fa-circle-xmark"></i> Unpaid
-                                    </span>
-                                  )}
-                                </td>
-                                <td>
-                                  <div className="dw-actions-group">
-                                    {isPending ? (
-                                      <>
-                                        <button
-                                          className="dw-btn-action action-approve"
-                                          onClick={() => handleUpdateStatus(b.id, 'confirmed')}
-                                          title="Confirm booking"
-                                        >
-                                          <i className="fa-solid fa-check"></i>
-                                        </button>
-                                        <button
-                                          className="dw-btn-action action-reject"
-                                          onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                                          title="Reject booking"
-                                        >
-                                          <i className="fa-solid fa-xmark"></i>
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <button
-                                        className="dw-btn-action"
-                                        onClick={() => handleUpdateStatus(b.id, 'pending')}
-                                        title="Reset to Pending"
-                                      >
-                                        <i className="fa-solid fa-rotate-left"></i>
-                                      </button>
-                                    )}
-                                    <button
-                                      className="dw-btn-action"
-                                      onClick={() => setSelectedBooking(b)}
-                                      title="View Details Dossier"
-                                    >
-                                      <i className="fa-solid fa-eye"></i>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
+                  {aiSummary && (
+                    <div>
+                      {aiModelUsed && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: '#f1f5f9',
+                              border: '1px solid #e2e8f0',
+                              color: '#475569',
+                              padding: '3px 10px',
+                              borderRadius: '20px',
+                              fontSize: '0.72rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            <i className="fa-solid fa-microchip" style={{ color: '#b8860b' }}></i> Powered by {aiModelUsed}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          background: '#ffffff',
+                          borderRadius: '12px',
+                          border: '1px solid #e2e8f0',
+                          padding: '20px 24px'
+                        }}
+                      >
+                        {renderAiSummary(aiSummary)}
+                      </div>
                     </div>
+                  )}
+                </div>
+              </div>
+              {pendingCount > 0 && (
+                <div className="dw-queue-section">
+                  <div className="dw-queue-header">
+                    <div className="dw-queue-title">
+                      <i className="fa-solid fa-bell" style={{ color: '#d97706', fontSize: '1.2rem' }}></i>
+                      <h3>Action Needed: Approvals Queue</h3>
+                    </div>
+                    <span className="dw-queue-tag">{pendingCount} Pending</span>
                   </div>
-                </>
+
+                  <div className="dw-queue-grid">
+                    {pendingBookings.slice(0, 6).map((b) => (
+                      <div key={b.id} className="dw-queue-card">
+                        <div className="dw-queue-card-top">
+                          <div className="dw-queue-client">
+                            <h4>{b.name || 'Client Reservation'}</h4>
+                            <span>{b.email} &bull; {b.phone || 'No phone'}</span>
+                          </div>
+                          <span className="dw-queue-service">{b.service}</span>
+                        </div>
+
+                        <div className="dw-queue-details">
+                          <span><i className="fa-solid fa-calendar"></i> {b.date || 'TBD'}</span>
+                          <span><i className="fa-solid fa-location-dot"></i> {b.venue || b.address || 'Venue TBD'}</span>
+                          <span><i className="fa-solid fa-wallet"></i> {b.budget || 'Custom'}</span>
+                        </div>
+
+                        <div className="dw-queue-actions">
+                          <button
+                            className="dw-btn-approve-quick"
+                            onClick={() => handleUpdateStatus(b.id, 'confirmed')}
+                            title="Confirm and unlock payment for user"
+                          >
+                            <i className="fa-solid fa-check"></i> Approve
+                          </button>
+                          <button
+                            className="dw-btn-reject-quick"
+                            onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                          >
+                            <i className="fa-solid fa-xmark"></i> Reject
+                          </button>
+                          <button
+                            className="dw-btn-action"
+                            onClick={() => setSelectedBooking(b)}
+                            title="View details"
+                          >
+                            <i className="fa-solid fa-eye"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
-              {/* ==============================================================
+              {/* Recent Bookings Quick Table */}
+              <div className="dw-panel-card">
+                <div className="dw-panel-header">
+                  <div className="dw-panel-title-area">
+                    <i className="fa-solid fa-list-check" style={{ color: '#b8860b' }}></i>
+                    <h3>Recent Client Reservations</h3>
+                  </div>
+                  <button
+                    className="dw-topbar-btn"
+                    onClick={() => handleTabChange('all')}
+                  >
+                    View All Bookings <i className="fa-solid fa-arrow-right" style={{ marginLeft: '4px' }}></i>
+                  </button>
+                </div>
+
+                <div className="dw-table-wrapper">
+                  <table className="dw-table">
+                    <thead>
+                      <tr>
+                        <th>Client</th>
+                        <th>Service & Event</th>
+                        <th>Event Date</th>
+                        <th>Budget</th>
+                        <th>Approval Status</th>
+                        <th>Payment</th>
+                        <th>Quick Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookings.slice(0, 8).map((b) => {
+                        const isConfirmed = b.bookingStatus === 'confirmed'
+                        const isRejected = b.bookingStatus === 'rejected'
+                        const isPending = !isConfirmed && !isRejected
+
+                        const isFullyPaid = b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid'
+                        const isAdvancePaid = !isFullyPaid && (b.advancePaid || b.paymentStatus === 'Advance Paid')
+
+                        return (
+                          <tr key={b.id} className={isPending ? 'row-needs-attention' : ''}>
+                            <td>
+                              <div className="dw-cell-client">
+                                <div className="dw-client-avatar-mini">
+                                  <i className="fa-solid fa-user"></i>
+                                </div>
+                                <div>
+                                  <div className="dw-client-name">{b.name || 'Client'}</div>
+                                  <div className="dw-client-sub">{b.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <strong>{b.service}</strong>
+                              <div className="dw-client-sub">{b.eventType || 'Wedding Event'}</div>
+                            </td>
+                            <td>{b.date || 'TBD'}</td>
+                            <td>{b.budget || 'Custom'}</td>
+                            <td>
+                              {isConfirmed && (
+                                <span className="dw-status-tag status-confirmed">
+                                  <i className="fa-solid fa-circle-check"></i> Confirmed
+                                </span>
+                              )}
+                              {isPending && (
+                                <span className="dw-status-tag status-pending">
+                                  <i className="fa-solid fa-clock"></i> Needs Approval
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="dw-status-tag status-rejected">
+                                  <i className="fa-solid fa-ban"></i> Rejected
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {isFullyPaid && (
+                                <span className="dw-pay-tag pay-fully">
+                                  <i className="fa-solid fa-receipt"></i> Fully Paid
+                                </span>
+                              )}
+                              {isAdvancePaid && (
+                                <span className="dw-pay-tag pay-advance">
+                                  <i className="fa-solid fa-hourglass-half"></i> 50% Advance
+                                </span>
+                              )}
+                              {!isFullyPaid && !isAdvancePaid && (
+                                <span className="dw-pay-tag pay-unpaid">
+                                  <i className="fa-solid fa-circle-xmark"></i> Unpaid
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="dw-actions-group">
+                                {isPending ? (
+                                  <>
+                                    <button
+                                      className="dw-btn-action action-approve"
+                                      onClick={() => handleUpdateStatus(b.id, 'confirmed')}
+                                      title="Confirm booking"
+                                    >
+                                      <i className="fa-solid fa-check"></i>
+                                    </button>
+                                    <button
+                                      className="dw-btn-action action-reject"
+                                      onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                                      title="Reject booking"
+                                    >
+                                      <i className="fa-solid fa-xmark"></i>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    className="dw-btn-action"
+                                    onClick={() => handleUpdateStatus(b.id, 'pending')}
+                                    title="Reset to Pending"
+                                  >
+                                    <i className="fa-solid fa-rotate-left"></i>
+                                  </button>
+                                )}
+                                <button
+                                  className="dw-btn-action"
+                                  onClick={() => setSelectedBooking(b)}
+                                  title="View Details Dossier"
+                                >
+                                  <i className="fa-solid fa-eye"></i>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ==============================================================
                   TAB 2: BOOKINGS LIST (ALL / PENDING / CONFIRMED / REJECTED)
                   ============================================================== */}
-              {(activeTab === 'all' || activeTab === 'pending' || activeTab === 'confirmed') && (
-                <div className="dw-panel-card">
-                  {/* Toolbar */}
-                  <div className="dw-panel-header">
-                    <div className="dw-filter-pills">
-                      <button
-                        className={`dw-pill ${statusFilter === 'all' ? 'active' : ''}`}
-                        onClick={() => setStatusFilter('all')}
-                      >
-                        All ({totalCount})
-                      </button>
-                      <button
-                        className={`dw-pill pill-pending ${statusFilter === 'pending' ? 'active' : ''}`}
-                        onClick={() => setStatusFilter('pending')}
-                      >
-                        <i className="fa-solid fa-clock"></i> Needs Approval ({pendingCount})
-                      </button>
-                      <button
-                        className={`dw-pill pill-confirmed ${statusFilter === 'confirmed' ? 'active' : ''}`}
-                        onClick={() => setStatusFilter('confirmed')}
-                      >
-                        <i className="fa-solid fa-circle-check"></i> Confirmed ({confirmedCount})
-                      </button>
-                      <button
-                        className={`dw-pill ${statusFilter === 'advance_paid' ? 'active' : ''}`}
-                        onClick={() => setStatusFilter('advance_paid')}
-                      >
-                        <i className="fa-solid fa-hourglass-half"></i> 50% Advance ({advancePaidCount})
-                      </button>
-                      <button
-                        className={`dw-pill ${statusFilter === 'fully_paid' ? 'active' : ''}`}
-                        onClick={() => setStatusFilter('fully_paid')}
-                      >
-                        <i className="fa-solid fa-receipt"></i> Fully Paid ({fullyPaidCount})
-                      </button>
-                      <button
-                        className={`dw-pill ${statusFilter === 'rejected' ? 'active' : ''}`}
-                        onClick={() => setStatusFilter('rejected')}
-                      >
-                        <i className="fa-solid fa-ban"></i> Rejected
-                      </button>
-                    </div>
+          {(activeTab === 'all' || activeTab === 'pending' || activeTab === 'confirmed') && (
+            <div className="dw-panel-card">
+              {/* Toolbar */}
+              <div className="dw-panel-header">
+                <div className="dw-filter-pills">
+                  <button
+                    className={`dw-pill ${statusFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setStatusFilter('all')}
+                  >
+                    All ({totalCount})
+                  </button>
+                  <button
+                    className={`dw-pill pill-pending ${statusFilter === 'pending' ? 'active' : ''}`}
+                    onClick={() => setStatusFilter('pending')}
+                  >
+                    <i className="fa-solid fa-clock"></i> Needs Approval ({pendingCount})
+                  </button>
+                  <button
+                    className={`dw-pill pill-confirmed ${statusFilter === 'confirmed' ? 'active' : ''}`}
+                    onClick={() => setStatusFilter('confirmed')}
+                  >
+                    <i className="fa-solid fa-circle-check"></i> Confirmed ({confirmedCount})
+                  </button>
+                  <button
+                    className={`dw-pill ${statusFilter === 'advance_paid' ? 'active' : ''}`}
+                    onClick={() => setStatusFilter('advance_paid')}
+                  >
+                    <i className="fa-solid fa-hourglass-half"></i> 50% Advance ({advancePaidCount})
+                  </button>
+                  <button
+                    className={`dw-pill ${statusFilter === 'fully_paid' ? 'active' : ''}`}
+                    onClick={() => setStatusFilter('fully_paid')}
+                  >
+                    <i className="fa-solid fa-receipt"></i> Fully Paid ({fullyPaidCount})
+                  </button>
+                  <button
+                    className={`dw-pill ${statusFilter === 'rejected' ? 'active' : ''}`}
+                    onClick={() => setStatusFilter('rejected')}
+                  >
+                    <i className="fa-solid fa-ban"></i> Rejected
+                  </button>
+                </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      {/* Service Filter */}
-                      {serviceOptions.length > 0 && (
-                        <select
-                          className="dw-topbar-btn"
-                          value={serviceFilter}
-                          onChange={(e) => setServiceFilter(e.target.value)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <option value="all">All Services</option>
-                          {serviceOptions.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {/* Service Filter */}
+                  {serviceOptions.length > 0 && (
+                    <select
+                      className="dw-topbar-btn"
+                      value={serviceFilter}
+                      onChange={(e) => setServiceFilter(e.target.value)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <option value="all">All Services</option>
+                      {serviceOptions.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  )}
 
-                      {/* View mode toggle */}
-                      <div className="dw-view-switch">
-                        <button
-                          className={`dw-view-btn ${viewMode === 'table' ? 'active' : ''}`}
-                          onClick={() => setViewMode('table')}
-                          title="Table View"
-                        >
-                          <i className="fa-solid fa-table-list"></i>
-                        </button>
-                        <button
-                          className={`dw-view-btn ${viewMode === 'cards' ? 'active' : ''}`}
-                          onClick={() => setViewMode('cards')}
-                          title="Card Grid View"
-                        >
-                          <i className="fa-solid fa-grip"></i>
-                        </button>
-                      </div>
-                    </div>
+                  {/* View mode toggle */}
+                  <div className="dw-view-switch">
+                    <button
+                      className={`dw-view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                      onClick={() => setViewMode('table')}
+                      title="Table View"
+                    >
+                      <i className="fa-solid fa-table-list"></i>
+                    </button>
+                    <button
+                      className={`dw-view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                      onClick={() => setViewMode('cards')}
+                      title="Card Grid View"
+                    >
+                      <i className="fa-solid fa-grip"></i>
+                    </button>
                   </div>
+                </div>
+              </div>
 
-                  {/* Empty state */}
-                  {filteredBookings.length === 0 ? (
-                    <div className="dw-empty-state">
-                      <div className="dw-empty-icon">
-                        <i className="fa-solid fa-folder-open"></i>
-                      </div>
-                      <h3>No Bookings Found</h3>
-                      <p>
-                        {searchQuery || statusFilter !== 'all' || serviceFilter !== 'all'
-                          ? 'No reservations matched your current filter criteria or search query.'
-                          : 'No reservations have been registered yet.'}
-                      </p>
-                      {(searchQuery || statusFilter !== 'all' || serviceFilter !== 'all') && (
-                        <button
-                          className="dw-topbar-btn dw-topbar-btn-primary"
-                          onClick={() => {
-                            setSearchQuery('')
-                            setStatusFilter('all')
-                            setServiceFilter('all')
-                          }}
-                          style={{ margin: '0 auto' }}
-                        >
-                          Reset Filters
-                        </button>
-                      )}
-                    </div>
-                  ) : viewMode === 'table' ? (
-                    /* ---------------- TABLE VIEW ---------------- */
-                    <div className="dw-table-wrapper">
-                      <table className="dw-table">
-                        <thead>
-                          <tr>
-                            <th>ID & Client</th>
-                            <th>Service & Event</th>
-                            <th>Date & Venue</th>
-                            <th>Budget</th>
-                            <th>Approval Status</th>
-                            <th>Payment Status</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredBookings.map((b) => {
-                            const isConfirmed = b.bookingStatus === 'confirmed'
-                            const isRejected = b.bookingStatus === 'rejected'
-                            const isPending = !isConfirmed && !isRejected
+              {/* Empty state */}
+              {filteredBookings.length === 0 ? (
+                <div className="dw-empty-state">
+                  <div className="dw-empty-icon">
+                    <i className="fa-solid fa-folder-open"></i>
+                  </div>
+                  <h3>No Bookings Found</h3>
+                  <p>
+                    {searchQuery || statusFilter !== 'all' || serviceFilter !== 'all'
+                      ? 'No reservations matched your current filter criteria or search query.'
+                      : 'No reservations have been registered yet.'}
+                  </p>
+                  {(searchQuery || statusFilter !== 'all' || serviceFilter !== 'all') && (
+                    <button
+                      className="dw-topbar-btn dw-topbar-btn-primary"
+                      onClick={() => {
+                        setSearchQuery('')
+                        setStatusFilter('all')
+                        setServiceFilter('all')
+                      }}
+                      style={{ margin: '0 auto' }}
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
+              ) : viewMode === 'table' ? (
+                /* ---------------- TABLE VIEW ---------------- */
+                <div className="dw-table-wrapper">
+                  <table className="dw-table">
+                    <thead>
+                      <tr>
+                        <th>ID & Client</th>
+                        <th>Service & Event</th>
+                        <th>Date & Venue</th>
+                        <th>Budget</th>
+                        <th>Approval Status</th>
+                        <th>Payment Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredBookings.map((b) => {
+                        const isConfirmed = b.bookingStatus === 'confirmed'
+                        const isRejected = b.bookingStatus === 'rejected'
+                        const isPending = !isConfirmed && !isRejected
 
-                            const isFullyPaid = b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid'
-                            const isAdvancePaid = !isFullyPaid && (b.advancePaid || b.paymentStatus === 'Advance Paid')
+                        const isFullyPaid = !!(b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid')
+                        const isAdvancePaid = !isFullyPaid && !!(b.advancePaid || b.paymentStatus === 'Advance Paid')
+                        const isFunctionDone = isFunctionDoneCheck(b)
+                        const canEdit = canEditBookingCheck(b)
 
-                            return (
-                              <tr key={b.id} className={isPending ? 'row-needs-attention' : ''}>
-                                <td>
-                                  <div className="dw-cell-client">
-                                    <div className="dw-client-avatar-mini">
-                                      <i className="fa-solid fa-user"></i>
-                                    </div>
-                                    <div>
-                                      <div className="dw-client-name">{b.name || 'Client'}</div>
-                                      <div className="dw-client-sub">
-                                        <span>#{String(b.id).slice(-6)}</span>
-                                        <span>&bull;</span>
-                                        <span>{b.email}</span>
-                                      </div>
-                                      {b.phone && <div className="dw-client-sub"><i className="fa-solid fa-phone" style={{ fontSize: '0.7rem' }}></i> {b.phone}</div>}
-                                    </div>
+                        return (
+                          <tr key={b.id} className={isPending ? 'row-needs-attention' : ''}>
+                            <td>
+                              <div className="dw-cell-client">
+                                <div className="dw-client-avatar-mini">
+                                  <i className="fa-solid fa-user"></i>
+                                </div>
+                                <div>
+                                  <div className="dw-client-name">{b.name || 'Client'}</div>
+                                  <div className="dw-client-sub">
+                                    <span>#{String(b.id).slice(-6)}</span>
+                                    <span>&bull;</span>
+                                    <span>{b.email}</span>
                                   </div>
-                                </td>
-                                <td>
-                                  <strong>{b.service}</strong>
-                                  <div className="dw-client-sub">{b.eventType || 'Wedding'}</div>
-                                </td>
-                                <td>
-                                  <div><i className="fa-solid fa-calendar-day" style={{ color: '#b8860b', marginRight: '5px' }}></i> {b.date || 'TBD'}</div>
-                                  <div className="dw-client-sub"><i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }}></i> {b.venue || b.address || 'Venue TBD'}</div>
-                                </td>
-                                <td>
-                                  <strong>{b.budget || 'Custom'}</strong>
-                                  {b.guests && b.guests !== 'N/A' && (
-                                    <div className="dw-client-sub">{b.guests} Guests</div>
-                                  )}
-                                </td>
-                                <td>
-                                  {isConfirmed && (
-                                    <span className="dw-status-tag status-confirmed">
-                                      <i className="fa-solid fa-circle-check"></i> Confirmed
-                                    </span>
-                                  )}
-                                  {isPending && (
-                                    <span className="dw-status-tag status-pending">
-                                      <i className="fa-solid fa-clock"></i> Needs Approval
-                                    </span>
-                                  )}
-                                  {isRejected && (
-                                    <span className="dw-status-tag status-rejected">
-                                      <i className="fa-solid fa-ban"></i> Rejected
-                                    </span>
-                                  )}
-                                </td>
-                                <td>
-                                  {isFullyPaid && (
-                                    <span className="dw-pay-tag pay-fully">
-                                      <i className="fa-solid fa-receipt"></i> Fully Paid
-                                    </span>
-                                  )}
-                                  {isAdvancePaid && (
-                                    <span className="dw-pay-tag pay-advance">
-                                      <i className="fa-solid fa-hourglass-half"></i> 50% Advance
-                                    </span>
-                                  )}
-                                  {!isFullyPaid && !isAdvancePaid && (
-                                    <span className="dw-pay-tag pay-unpaid">
-                                      <i className="fa-solid fa-circle-xmark"></i> Unpaid
-                                    </span>
-                                  )}
-                                </td>
-                                <td>
-                                  <div className="dw-actions-group">
+                                  {b.phone && <div className="dw-client-sub"><i className="fa-solid fa-phone" style={{ fontSize: '0.7rem' }}></i> {b.phone}</div>}
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <strong>{b.service}</strong>
+                              <div className="dw-client-sub">{b.eventType || 'Wedding'}</div>
+                            </td>
+                            <td>
+                              <div><i className="fa-solid fa-calendar-day" style={{ color: '#b8860b', marginRight: '5px' }}></i> {b.date || 'TBD'}</div>
+                              <div className="dw-client-sub"><i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }}></i> {b.venue || b.address || 'Venue TBD'}</div>
+                            </td>
+                            <td>
+                              <strong>{b.budget || 'Custom'}</strong>
+                              {b.guests && b.guests !== 'N/A' && (
+                                <div className="dw-client-sub">{b.guests} Guests</div>
+                              )}
+                            </td>
+                            <td>
+                              {isConfirmed && (
+                                <span className="dw-status-tag status-confirmed">
+                                  <i className="fa-solid fa-circle-check"></i> Confirmed
+                                </span>
+                              )}
+                              {isPending && (
+                                <span className="dw-status-tag status-pending">
+                                  <i className="fa-solid fa-clock"></i> Needs Approval
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="dw-status-tag status-rejected">
+                                  <i className="fa-solid fa-ban"></i> Rejected
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {isFullyPaid && (
+                                <span className="dw-pay-tag pay-fully">
+                                  <i className="fa-solid fa-receipt"></i> Fully Paid
+                                </span>
+                              )}
+                              {isAdvancePaid && (
+                                <span className="dw-pay-tag pay-advance">
+                                  <i className="fa-solid fa-hourglass-half"></i> 50% Advance
+                                </span>
+                              )}
+                              {!isFullyPaid && !isAdvancePaid && (
+                                <span className="dw-pay-tag pay-unpaid">
+                                  <i className="fa-solid fa-circle-xmark"></i> Unpaid
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="dw-actions-group">
+                                {isFunctionDone ? (
+                                  /* Function date passed + 100% paid: show completion badge only */
+                                  <span
+                                    className="dw-status-tag"
+                                    style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', fontSize: '0.75rem', padding: '4px 9px', borderRadius: 7 }}
+                                    title="Event completed and fully paid — no further actions needed"
+                                  >
+                                    <i className="fa-solid fa-party-horn" style={{ marginRight: 4 }}></i>
+                                    Function Done
+                                  </span>
+                                ) : (
+                                  <>
                                     {isPending ? (
                                       <>
                                         <button
@@ -1517,6 +2093,27 @@ function AdminPanel() {
                                       <i className="fa-solid fa-eye"></i>
                                     </button>
 
+                                    {/* Edit allowed only > 1 month before event */}
+                                    {canEdit ? (
+                                      <button
+                                        className="dw-btn-action"
+                                        onClick={() => setSelectedBooking(b)}
+                                        title="Edit booking details"
+                                        style={{ background: '#eff6ff', color: '#1d4ed8' }}
+                                      >
+                                        <i className="fa-solid fa-pen-to-square"></i>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        className="dw-btn-action"
+                                        disabled
+                                        title={parseFunctionDate(b.date) && parseFunctionDate(b.date) <= new Date() ? 'Event date has passed — editing locked' : 'Within 1 month of event — editing locked'}
+                                        style={{ opacity: 0.38, cursor: 'not-allowed', background: '#f1f5f9', color: '#94a3b8' }}
+                                      >
+                                        <i className="fa-solid fa-lock"></i>
+                                      </button>
+                                    )}
+
                                     <button
                                       className="dw-btn-action action-delete"
                                       onClick={() => handleDeleteBooking(b.id)}
@@ -1524,103 +2121,123 @@ function AdminPanel() {
                                     >
                                       <i className="fa-solid fa-trash-can"></i>
                                     </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    /* ---------------- CARDS VIEW ---------------- */
-                    <div className="dw-cards-grid">
-                      {filteredBookings.map((b) => {
-                        const isConfirmed = b.bookingStatus === 'confirmed'
-                        const isRejected = b.bookingStatus === 'rejected'
-                        const isPending = !isConfirmed && !isRejected
-
-                        const isFullyPaid = b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid'
-                        const isAdvancePaid = !isFullyPaid && (b.advancePaid || b.paymentStatus === 'Advance Paid')
-
-                        return (
-                          <div key={b.id} className={`dw-booking-card ${isPending ? 'card-pending' : ''}`}>
-                            <div>
-                              <div className="dw-bcard-header">
-                                <div className="dw-bcard-client">
-                                  <div className="dw-client-avatar-mini">
-                                    <i className="fa-solid fa-user-tie"></i>
-                                  </div>
-                                  <div>
-                                    <h4>{b.name || 'Client Reservation'}</h4>
-                                    <div className="dw-client-sub">{b.email}</div>
-                                    {b.phone && <div className="dw-client-sub">{b.phone}</div>}
-                                  </div>
-                                </div>
-
-                                <div className="dw-bcard-badges">
-                                  {isConfirmed && (
-                                    <span className="dw-status-tag status-confirmed">
-                                      <i className="fa-solid fa-circle-check"></i> Confirmed
-                                    </span>
-                                  )}
-                                  {isPending && (
-                                    <span className="dw-status-tag status-pending">
-                                      <i className="fa-solid fa-clock"></i> Needs Approval
-                                    </span>
-                                  )}
-                                  {isRejected && (
-                                    <span className="dw-status-tag status-rejected">
-                                      <i className="fa-solid fa-ban"></i> Rejected
-                                    </span>
-                                  )}
-
-                                  {isFullyPaid && (
-                                    <span className="dw-pay-tag pay-fully">100% Fully Paid</span>
-                                  )}
-                                  {isAdvancePaid && (
-                                    <span className="dw-pay-tag pay-advance">50% Advance Paid</span>
-                                  )}
-                                </div>
+                                  </>
+                                )}
                               </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                /* ---------------- CARDS VIEW ---------------- */
+                <div className="dw-cards-grid">
+                  {filteredBookings.map((b) => {
+                    const isConfirmed = b.bookingStatus === 'confirmed'
+                    const isRejected = b.bookingStatus === 'rejected'
+                    const isPending = !isConfirmed && !isRejected
 
-                              <div className="dw-bcard-service-strip">
-                                <span className="dw-bcard-service-name">
-                                  <i className="fa-solid fa-gem" style={{ color: '#b8860b' }}></i>
-                                  {b.service}
-                                </span>
-                                <span className="dw-bcard-date">
-                                  <i className="fa-solid fa-calendar"></i> {b.date || 'TBD'}
-                                </span>
+                    const isFullyPaid = !!(b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid')
+                    const isAdvancePaid = !isFullyPaid && !!(b.advancePaid || b.paymentStatus === 'Advance Paid')
+                    const isFunctionDone = isFunctionDoneCheck(b)
+                    const canEdit = canEditBookingCheck(b)
+
+                    return (
+                      <div key={b.id} className={`dw-booking-card ${isPending ? 'card-pending' : ''}`}>
+                        <div>
+                          <div className="dw-bcard-header">
+                            <div className="dw-bcard-client">
+                              <div className="dw-client-avatar-mini">
+                                <i className="fa-solid fa-user-tie"></i>
                               </div>
-
-                              <div className="dw-bcard-info-grid">
-                                <div className="dw-bcard-info-item">
-                                  <span className="dw-bcard-info-label">Event Type</span>
-                                  <span className="dw-bcard-info-val">{b.eventType || 'Wedding'}</span>
-                                </div>
-                                <div className="dw-bcard-info-item">
-                                  <span className="dw-bcard-info-label">Guests</span>
-                                  <span className="dw-bcard-info-val">{b.guests || 'Not specified'}</span>
-                                </div>
-                                <div className="dw-bcard-info-item">
-                                  <span className="dw-bcard-info-label">Venue</span>
-                                  <span className="dw-bcard-info-val">{b.venue || b.address || 'Venue TBD'}</span>
-                                </div>
-                                <div className="dw-bcard-info-item">
-                                  <span className="dw-bcard-info-label">Budget</span>
-                                  <span className="dw-bcard-info-val">{b.budget || 'Custom'}</span>
-                                </div>
+                              <div>
+                                <h4>{b.name || 'Client Reservation'}</h4>
+                                <div className="dw-client-sub">{b.email}</div>
+                                {b.phone && <div className="dw-client-sub">{b.phone}</div>}
                               </div>
-
-                              {b.notes && b.notes !== 'None' && (
-                                <div className="dw-bcard-notes">
-                                  &ldquo;{b.notes}&rdquo;
-                                </div>
-                              )}
                             </div>
 
-                            <div className="dw-bcard-actions">
+                            <div className="dw-bcard-badges">
+                              {isConfirmed && (
+                                <span className="dw-status-tag status-confirmed">
+                                  <i className="fa-solid fa-circle-check"></i> Confirmed
+                                </span>
+                              )}
+                              {isPending && (
+                                <span className="dw-status-tag status-pending">
+                                  <i className="fa-solid fa-clock"></i> Needs Approval
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="dw-status-tag status-rejected">
+                                  <i className="fa-solid fa-ban"></i> Rejected
+                                </span>
+                              )}
+
+                              {isFullyPaid && (
+                                <span className="dw-pay-tag pay-fully">100% Fully Paid</span>
+                              )}
+                              {isAdvancePaid && (
+                                <span className="dw-pay-tag pay-advance">50% Advance Paid</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="dw-bcard-service-strip">
+                            <span className="dw-bcard-service-name">
+                              <i className="fa-solid fa-gem" style={{ color: '#b8860b' }}></i>
+                              {b.service}
+                            </span>
+                            <span className="dw-bcard-date">
+                              <i className="fa-solid fa-calendar"></i> {b.date || 'TBD'}
+                            </span>
+                          </div>
+
+                          <div className="dw-bcard-info-grid">
+                            <div className="dw-bcard-info-item">
+                              <span className="dw-bcard-info-label">Event Type</span>
+                              <span className="dw-bcard-info-val">{b.eventType || 'Wedding'}</span>
+                            </div>
+                            <div className="dw-bcard-info-item">
+                              <span className="dw-bcard-info-label">Guests</span>
+                              <span className="dw-bcard-info-val">{b.guests || 'Not specified'}</span>
+                            </div>
+                            <div className="dw-bcard-info-item">
+                              <span className="dw-bcard-info-label">Venue</span>
+                              <span className="dw-bcard-info-val">{b.venue || b.address || 'Venue TBD'}</span>
+                            </div>
+                            <div className="dw-bcard-info-item">
+                              <span className="dw-bcard-info-label">Budget</span>
+                              <span className="dw-bcard-info-val">{b.budget || 'Custom'}</span>
+                            </div>
+                          </div>
+
+                          {b.notes && b.notes !== 'None' && (
+                            <div className="dw-bcard-notes">
+                              &ldquo;{b.notes}&rdquo;
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="dw-bcard-actions">
+                          {isFunctionDone ? (
+                            /* Event completed + fully paid — show done badge, no actions */
+                            <span
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 6,
+                                background: '#f0fdf4', color: '#15803d',
+                                border: '1.5px solid #bbf7d0', borderRadius: 10,
+                                fontSize: '0.83rem', fontWeight: 700, padding: '7px 14px'
+                              }}
+                              title="Event is complete and fully settled"
+                            >
+                              <i className="fa-solid fa-champagne-glasses"></i>
+                              Function Done
+                            </span>
+                          ) : (
+                            <>
                               {isPending ? (
                                 <>
                                   <button
@@ -1661,6 +2278,27 @@ function AdminPanel() {
                                 <i className="fa-solid fa-eye"></i>
                               </button>
 
+                              {/* Edit: locked within 1 month of event or after */}
+                              {canEdit ? (
+                                <button
+                                  className="dw-btn-action"
+                                  onClick={() => setSelectedBooking(b)}
+                                  title="Edit booking details"
+                                  style={{ background: '#eff6ff', color: '#1d4ed8' }}
+                                >
+                                  <i className="fa-solid fa-pen-to-square"></i>
+                                </button>
+                              ) : (
+                                <button
+                                  className="dw-btn-action"
+                                  disabled
+                                  title={parseFunctionDate(b.date) && parseFunctionDate(b.date) <= new Date() ? 'Event date has passed — editing locked' : 'Within 1 month of event — editing locked'}
+                                  style={{ opacity: 0.38, cursor: 'not-allowed', background: '#f1f5f9', color: '#94a3b8' }}
+                                >
+                                  <i className="fa-solid fa-lock"></i>
+                                </button>
+                              )}
+
                               <button
                                 className="dw-btn-action action-delete"
                                 onClick={() => handleDeleteBooking(b.id)}
@@ -1668,629 +2306,948 @@ function AdminPanel() {
                               >
                                 <i className="fa-solid fa-trash-can"></i>
                               </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ==============================================================
-                  TAB 3: PAYMENTS TRACKER
-                  ============================================================== */}
-              {activeTab === 'payments' && (
-                <div className="dw-panel-card">
-                  <div className="dw-panel-header">
-                    <div className="dw-panel-title-area">
-                      <i className="fa-solid fa-credit-card" style={{ color: '#b8860b' }}></i>
-                      <h3>Two-Phase Milestone Payments Tracker</h3>
-                    </div>
-                    <div className="dw-filter-pills">
-                      <span className="dw-pill pill-confirmed">
-                        <i className="fa-solid fa-check"></i> 50% Advance Paid: {advancePaidCount}
-                      </span>
-                      <span className="dw-pill active">
-                        <i className="fa-solid fa-receipt"></i> Fully Paid: {fullyPaidCount}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="dw-table-wrapper">
-                    <table className="dw-table">
-                      <thead>
-                        <tr>
-                          <th>Client & Booking</th>
-                          <th>Service & Date</th>
-                          <th>Total Budget</th>
-                          <th>Phase 1 (50% Advance)</th>
-                          <th>Phase 2 (Post-Event 50%)</th>
-                          <th>Overall Payment Status</th>
-                          <th>Admin Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredBookings.map((b) => {
-                          const isFullyPaid = b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid'
-                          const isAdvancePaid = !isFullyPaid && (b.advancePaid || b.paymentStatus === 'Advance Paid')
-
-                          return (
-                            <tr key={b.id}>
-                              <td>
-                                <div className="dw-client-name">{b.name || 'Client'}</div>
-                                <div className="dw-client-sub">#{String(b.id).slice(-6)} &bull; {b.email}</div>
-                              </td>
-                              <td>
-                                <strong>{b.service}</strong>
-                                <div className="dw-client-sub">{b.date || 'Date TBD'}</div>
-                              </td>
-                              <td>
-                                <strong>{b.budget || 'Custom'}</strong>
-                              </td>
-                              <td>
-                                {b.advancePaid || b.paymentStatus === 'Advance Paid' || isFullyPaid ? (
-                                  <div>
-                                    <span className="dw-pay-tag pay-fully">
-                                      <i className="fa-solid fa-check"></i> Paid
-                                    </span>
-                                    <div className="dw-client-sub">
-                                      <code>{b.advanceTxnId || b.transactionId || 'ADV_CONFIRMED'}</code>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="dw-pay-tag pay-unpaid">Awaiting 50%</span>
-                                )}
-                              </td>
-                              <td>
-                                {b.balancePaid || isFullyPaid ? (
-                                  <div>
-                                    <span className="dw-pay-tag pay-fully">
-                                      <i className="fa-solid fa-check"></i> Paid
-                                    </span>
-                                    <div className="dw-client-sub">
-                                      <code>{b.balanceTxnId || 'BAL_CONFIRMED'}</code>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="dw-pay-tag pay-unpaid">Pending Final</span>
-                                )}
-                              </td>
-                              <td>
-                                {isFullyPaid && (
-                                  <span className="dw-status-tag status-confirmed">
-                                    <i className="fa-solid fa-circle-check"></i> 100% Cleared
-                                  </span>
-                                )}
-                                {isAdvancePaid && (
-                                  <span className="dw-status-tag status-pending">
-                                    <i className="fa-solid fa-hourglass-half"></i> 50% Received
-                                  </span>
-                                )}
-                                {!isFullyPaid && !isAdvancePaid && (
-                                  <span className="dw-status-tag status-rejected">
-                                    <i className="fa-solid fa-clock"></i> Unpaid
-                                  </span>
-                                )}
-                              </td>
-                              <td>
-                                <div className="dw-actions-group">
-                                  <button
-                                    className="dw-topbar-btn"
-                                    style={{ padding: '5px 10px', fontSize: '0.78rem' }}
-                                    onClick={() => handleTogglePayment(b.id, 'advance')}
-                                    title="Toggle Advance Payment"
-                                  >
-                                    {b.advancePaid ? 'Revoke Adv' : 'Verify Adv'}
-                                  </button>
-                                  <button
-                                    className="dw-topbar-btn"
-                                    style={{ padding: '5px 10px', fontSize: '0.78rem' }}
-                                    onClick={() => handleTogglePayment(b.id, 'balance')}
-                                    title="Toggle Balance Payment"
-                                  >
-                                    {b.balancePaid ? 'Revoke Bal' : 'Verify Bal'}
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ==============================================================
-                  TAB 4: CLIENTS & USERS
-                  ============================================================== */}
-              {activeTab === 'users' && (
-                <div className="dw-panel-card">
-                  <div className="dw-panel-header">
-                    <div className="dw-panel-title-area">
-                      <i className="fa-solid fa-users" style={{ color: '#b8860b' }}></i>
-                      <h3>Registered Website Clients ({users.length})</h3>
-                    </div>
-                  </div>
-
-                  <div className="dw-table-wrapper">
-                    <table className="dw-table">
-                      <thead>
-                        <tr>
-                          <th>User Details</th>
-                          <th>Email Address</th>
-                          <th>Phone Number</th>
-                          <th>Bookings Count</th>
-                          <th>Account Type</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {users.map((u) => {
-                          const userBookings = bookings.filter(b => b.email && b.email.toLowerCase() === (u.email || '').toLowerCase())
-                          return (
-                            <tr key={u.id}>
-                              <td>
-                                <div className="dw-cell-client">
-                                  <div className="dw-client-avatar-mini">
-                                    <i className="fa-solid fa-user"></i>
-                                  </div>
-                                  <div className="dw-client-name">{u.name || 'Registered User'}</div>
-                                </div>
-                              </td>
-                              <td>{u.email}</td>
-                              <td>{u.phone || 'Not provided'}</td>
-                              <td>
-                                <span className="dw-badge-pill dw-badge-neutral">
-                                  {userBookings.length} {userBookings.length === 1 ? 'Booking' : 'Bookings'}
-                                </span>
-                              </td>
-                              <td>
-                                <span className="dw-status-tag status-confirmed">Client</span>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ==============================================================
-                  TAB 6: VENDOR MANAGEMENT
-                  ============================================================== */}
-              {activeTab === 'vendor_mgmt' && (
-                <div className="dw-panel-card">
-                  <div className="dw-panel-header">
-                    <div className="dw-panel-title-area">
-                      <i className="fa-solid fa-users-gear" style={{ color: '#b8860b' }}></i>
-                      <h3>Vendor Management ({vendors.length})</h3>
-                    </div>
-                    <div className="dw-filter-pills">
-                      <span className="dw-pill pill-confirmed">
-                        <i className="fa-solid fa-user-check"></i> Active: {vendors.filter(v => v.status !== 'Inactive').length}
-                      </span>
-                    </div>
-                  </div>
-
-                  {vendors.length === 0 ? (
-                    <div className="dw-empty-state">
-                      <div className="dw-empty-icon">
-                        <i className="fa-solid fa-users-slash"></i>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <h3>No Vendors Registered</h3>
-                      <p>Vendors who register through the vendor registration form will appear here.</p>
-                    </div>
-                  ) : (
-                    <div className="dw-table-wrapper">
-                      <table className="dw-table">
-                        <thead>
-                          <tr>
-                            <th>Vendor Details</th>
-                            <th>Service Category</th>
-                            <th>Contact Information</th>
-                            <th>Default Rate</th>
-                            <th>Assigned Tasks</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {vendors.map((v) => {
-                            const assignedTasks = bookings.filter(b => 
-                              b.vendorAllocations?.some(alloc => alloc.vendorId === v.id || alloc.vendorEmail === v.email)
-                            )
-                            const pendingTasks = assignedTasks.filter(b => 
-                              b.vendorAllocations?.some(alloc => 
-                                (alloc.vendorId === v.id || alloc.vendorEmail === v.email) && alloc.status === 'Pending'
-                              )
-                            ).length
-                            const acceptedTasks = assignedTasks.filter(b => 
-                              b.vendorAllocations?.some(alloc => 
-                                (alloc.vendorId === v.id || alloc.vendorEmail === v.email) && alloc.status === 'Accepted'
-                              )
-                            ).length
-
-                            return (
-                              <tr key={v.id}>
-                                <td>
-                                  <div className="dw-cell-client">
-                                    <div className="dw-client-avatar-mini">
-                                      <i className="fa-solid fa-store"></i>
-                                    </div>
-                                    <div>
-                                      <div className="dw-client-name">{v.name || 'Vendor'}</div>
-                                      <div className="dw-client-sub">{v.businessName || 'Business Name'}</div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className="dw-badge-pill dw-badge-neutral">
-                                    {v.service || 'General'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <div>{v.email}</div>
-                                  <div className="dw-client-sub">{v.phone || 'Not provided'}</div>
-                                </td>
-                                <td>
-                                  <strong>₹{Number(v.defaultRate || 0).toLocaleString('en-IN')}</strong>
-                                </td>
-                                <td>
-                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                    <span className="dw-pill pill-pending" style={{ fontSize: '0.72rem' }}>
-                                      {pendingTasks} Pending
-                                    </span>
-                                    <span className="dw-pill pill-confirmed" style={{ fontSize: '0.72rem' }}>
-                                      {acceptedTasks} Accepted
-                                    </span>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                    )
+                  })}
                 </div>
               )}
+            </div>
+          )}
 
-              {activeTab === 'task_assign' && (
-                <VendorTaskAssignment
-                  vendors={vendors}
-                  users={users}
-                  bookings={bookings}
-                  setBookings={setBookings}
-                  vendorTasks={vendorTasks}
-                  setVendorTasks={setVendorTasks}
-                  showNotification={showNotification}
-                />
-              )}
-
-              {/* ==============================================================
-                  TAB 5: INQUIRIES & MESSAGES
+          {/* ==============================================================
+                  TAB 3: PAYMENTS TRACKER (CUSTOMER COLLECTIONS)
                   ============================================================== */}
-              {activeTab === 'inquiries' && (
-                <div className="dw-panel-card">
-                  <div className="dw-panel-header">
-                    <div className="dw-panel-title-area">
-                      <i className="fa-solid fa-envelope-open-text" style={{ color: '#b8860b' }}></i>
-                      <h3>Customer Contact Inquiries ({contacts.length})</h3>
-                    </div>
+          {activeTab === 'payments' && paymentSubTab === 'customer' && (
+            <div className="dw-panel-card">
+              <div className="dw-panel-header" style={{ flexWrap: 'wrap', gap: '14px' }}>
+                <div className="dw-panel-title-area">
+                  <i className="fa-solid fa-credit-card" style={{ color: '#b8860b' }}></i>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Two-Phase Milestone Payments Tracker</h3>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Customer fee collections (50% advance to lock &amp; 50% balance post-event).
+                    </span>
                   </div>
-
-                  {contacts.length === 0 ? (
-                    <div className="dw-empty-state">
-                      <div className="dw-empty-icon">
-                        <i className="fa-solid fa-inbox"></i>
-                      </div>
-                      <h3>No Inquiries Yet</h3>
-                      <p>Messages submitted through the contact form will appear here.</p>
-                    </div>
-                  ) : (
-                    <div className="dw-table-wrapper">
-                      <table className="dw-table">
-                        <thead>
-                          <tr>
-                            <th>Sender</th>
-                            <th>Contact</th>
-                            <th>Subject / Inquiry Message</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {contacts.map((c) => (
-                            <tr key={c.id}>
-                              <td>
-                                <strong>{c.name || 'Website Visitor'}</strong>
-                              </td>
-                              <td>
-                                <div>{c.email}</div>
-                                {c.phone && <div className="dw-client-sub">{c.phone}</div>}
-                              </td>
-                              <td>
-                                <div style={{ maxWidth: '450px', whiteSpace: 'normal' }}>
-                                  {c.message || c.subject || 'Inquiry message'}
-                                </div>
-                              </td>
-                              <td>
-                                <button
-                                  className="dw-btn-action action-delete"
-                                  onClick={() => handleDeleteContact(c.id)}
-                                  title="Delete Message"
-                                >
-                                  <i className="fa-solid fa-trash-can"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
-              )}
 
-              {/* ==============================================================
-                  TAB 6: CUSTOMER FEEDBACK & REVIEWS MANAGEMENT
-                  ============================================================== */}
-              {activeTab === 'feedback' && (
-                <div className="dw-panel-card">
-                  <div className="dw-panel-header" style={{ flexWrap: 'wrap', gap: '15px' }}>
-                    <div className="dw-panel-title-area">
-                      <i className="fa-solid fa-star" style={{ color: '#f59e0b' }}></i>
-                      <h3>Customer Feedback & Reviews Management ({filteredReviews.length})</h3>
-                    </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', marginRight: '6px' }}>
                     <button
                       type="button"
-                      className="dw-topbar-btn dw-topbar-btn-primary"
-                      onClick={() => handleOpenFeedbackModal()}
-                      style={{ background: '#b8860b', borderColor: '#b8860b', color: '#fff' }}
+                      className={`dw-pill ${paymentSubTab === 'customer' ? 'active' : ''}`}
+                      style={{ border: 'none', cursor: 'pointer' }}
+                      onClick={() => setPaymentSubTab('customer')}
                     >
-                      <i className="fa-solid fa-plus" style={{ marginRight: '6px' }}></i> Add New Feedback
+                      <i className="fa-solid fa-credit-card"></i> Customer Collections
+                    </button>
+                    <button
+                      type="button"
+                      className={`dw-pill ${paymentSubTab === 'vendor' ? 'active' : ''}`}
+                      style={{ border: 'none', cursor: 'pointer' }}
+                      onClick={() => setPaymentSubTab('vendor')}
+                    >
+                      <i className="fa-solid fa-money-bill-transfer"></i> Vendor Payouts ({vendorPayoutRecords.length})
                     </button>
                   </div>
 
-                  {/* Top Stats Strip */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', padding: '20px 24px 10px' }}>
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                        <i className="fa-solid fa-comments"></i>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Total Reviews</div>
-                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1e293b' }}>{reviews.length}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                        <i className="fa-solid fa-star"></i>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Avg Rating</div>
-                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {averageRating} <span style={{ fontSize: '0.85rem' }}>★</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                        <i className="fa-solid fa-award"></i>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>5-Star Reviews</div>
-                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#059669' }}>{fiveStarReviewsCount}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#fdf4ff', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                        <i className="fa-solid fa-house"></i>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Featured on Home</div>
-                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#7e22ce' }}>{featuredReviewsCount}</div>
-                      </div>
-                    </div>
+                  <div className="dw-filter-pills">
+                    <span className="dw-pill pill-confirmed">
+                      <i className="fa-solid fa-check"></i> 50% Advance Paid: {advancePaidCount}
+                    </span>
+                    <span className="dw-pill active">
+                      <i className="fa-solid fa-receipt"></i> Fully Paid: {fullyPaidCount}
+                    </span>
                   </div>
+                </div>
+              </div>
 
-                  {/* Filter & Search Bar */}
-                  <div style={{ padding: '12px 24px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
-                    <div style={{ flex: '1 1 250px', position: 'relative' }}>
-                      <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}></i>
-                      <input
-                        type="text"
-                        placeholder="Search by client name, email or message..."
-                        value={feedbackSearch}
-                        onChange={(e) => setFeedbackSearch(e.target.value)}
-                        style={{ width: '100%', padding: '9px 12px 9px 36px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '0.88rem', outline: 'none' }}
-                      />
-                      {feedbackSearch && (
-                        <button
-                          type="button"
-                          onClick={() => setFeedbackSearch('')}
-                          style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
+              <div className="dw-table-wrapper">
+                <table className="dw-table">
+                  <thead>
+                    <tr>
+                      <th>Client &amp; Booking</th>
+                      <th>Service &amp; Date</th>
+                      <th>Total Budget</th>
+                      <th>Phase 1 (50% Advance)</th>
+                      <th>Phase 2 (Post-Event 50%)</th>
+                      <th>Overall Payment Status</th>
+                      <th>Admin Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBookings.map((b) => {
+                      const isFullyPaid = !!(b.balancePaid || b.paymentStatus === 'Fully Paid' || b.paymentStatus === 'Paid')
+                      const isAdvancePaid = !isFullyPaid && !!(b.advancePaid || b.paymentStatus === 'Advance Paid')
+                      const isFunctionDone = isFunctionDoneCheck(b)
 
-                    <select
-                      value={feedbackRatingFilter}
-                      onChange={(e) => setFeedbackRatingFilter(e.target.value)}
-                      style={{ padding: '9px 14px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '0.88rem', background: '#fff', outline: 'none' }}
-                    >
-                      <option value="all">⭐ All Ratings</option>
-                      <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
-                      <option value="4">⭐⭐⭐⭐ 4 Stars</option>
-                      <option value="3">⭐⭐⭐ 3 Stars</option>
-                      <option value="2">⭐⭐ 2 Stars</option>
-                      <option value="1">⭐ 1 Star</option>
-                    </select>
+                      return (
+                        <tr key={b.id}>
+                          <td>
+                            <div className="dw-client-name">{b.name || 'Client'}</div>
+                            <div className="dw-client-sub">#{String(b.id).slice(-6)} &bull; {b.email}</div>
+                          </td>
+                          <td>
+                            <strong>{b.service}</strong>
+                            <div className="dw-client-sub">{b.date || 'Date TBD'}</div>
+                          </td>
+                          <td>
+                            <strong>{b.budget || 'Custom'}</strong>
+                          </td>
+                          <td>
+                            {b.advancePaid || b.paymentStatus === 'Advance Paid' || isFullyPaid ? (
+                              <div>
+                                <span className="dw-pay-tag pay-fully">
+                                  <i className="fa-solid fa-check"></i> Paid
+                                </span>
+                                <div className="dw-client-sub">
+                                  <code>{b.advanceTxnId || b.transactionId || 'ADV_CONFIRMED'}</code>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="dw-pay-tag pay-unpaid">Awaiting 50%</span>
+                            )}
+                          </td>
+                          <td>
+                            {b.balancePaid || isFullyPaid ? (
+                              <div>
+                                <span className="dw-pay-tag pay-fully">
+                                  <i className="fa-solid fa-check"></i> Paid
+                                </span>
+                                <div className="dw-client-sub">
+                                  <code>{b.balanceTxnId || 'BAL_CONFIRMED'}</code>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="dw-pay-tag pay-unpaid">Pending Final</span>
+                            )}
+                          </td>
+                          <td>
+                            {isFullyPaid && (
+                              <span className="dw-status-tag status-confirmed">
+                                <i className="fa-solid fa-circle-check"></i> 100% Cleared
+                              </span>
+                            )}
+                            {isAdvancePaid && (
+                              <span className="dw-status-tag status-pending">
+                                <i className="fa-solid fa-hourglass-half"></i> 50% Received
+                              </span>
+                            )}
+                            {!isFullyPaid && !isAdvancePaid && (
+                              <span className="dw-status-tag status-rejected">
+                                <i className="fa-solid fa-clock"></i> Unpaid
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <div className="dw-actions-group">
+                              {isFunctionDone ? (
+                                /* Event date passed + 100% paid: Function Done — no payment actions */
+                                <span
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                                    background: '#f0fdf4', color: '#15803d',
+                                    border: '1px solid #bbf7d0', borderRadius: 7,
+                                    fontSize: '0.76rem', fontWeight: 700, padding: '5px 10px'
+                                  }}
+                                  title="Function is complete and fully paid — no payment actions needed"
+                                >
+                                  <i className="fa-solid fa-champagne-glasses"></i>
+                                  Function Done
+                                </span>
+                              ) : (
+                                <>
+                                  {/* Fully Paid: no payment actions needed */}
+                                  {isFullyPaid ? (
+                                    <span style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 600 }}>
+                                      <i className="fa-solid fa-circle-check" style={{ marginRight: 4 }}></i>
+                                      All Paid
+                                    </span>
+                                  ) : isAdvancePaid ? (
+                                    /* Advance received, balance still pending: show Revoke Adv + Verify Bal */
+                                    <>
+                                      <button
+                                        className="dw-topbar-btn"
+                                        style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+                                        onClick={() => handleTogglePayment(b.id, 'advance')}
+                                        title="Revoke Advance Payment"
+                                      >
+                                        Revoke Adv
+                                      </button>
+                                      <button
+                                        className="dw-topbar-btn"
+                                        style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+                                        onClick={() => handleTogglePayment(b.id, 'balance')}
+                                        title="Verify Balance Payment"
+                                      >
+                                        Verify Bal
+                                      </button>
+                                    </>
+                                  ) : (
+                                    /* Unpaid: only show Verify Adv (balance can't be verified before advance) */
+                                    <button
+                                      className="dw-topbar-btn"
+                                      style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+                                      onClick={() => handleTogglePayment(b.id, 'advance')}
+                                      title="Verify Advance Payment"
+                                    >
+                                      Verify Adv
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
-                    <select
-                      value={feedbackStatusFilter}
-                      onChange={(e) => setFeedbackStatusFilter(e.target.value)}
-                      style={{ padding: '9px 14px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '0.88rem', background: '#fff', outline: 'none' }}
-                    >
-                      <option value="all">All Visibility</option>
-                      <option value="approved">✓ Approved (Visible)</option>
-                      <option value="pending">⏳ Pending (Hidden)</option>
-                      <option value="featured">★ Featured on Home</option>
-                    </select>
+          {/* ==============================================================
+                  VENDOR PAYMENT MANAGEMENT
+                  ============================================================== */}
+          {(activeTab === 'vendor_payments' || (activeTab === 'payments' && paymentSubTab === 'vendor')) && (
+            <div className="dw-panel-card">
+              <div className="dw-panel-header" style={{ flexWrap: 'wrap', gap: '14px' }}>
+                <div className="dw-panel-title-area">
+                  <i className="fa-solid fa-money-bill-transfer" style={{ color: '#10b981' }}></i>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Vendor Payment Management</h3>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Track and record vendor advance &amp; remaining payouts independently from customer collections.
+                    </span>
+                  </div>
+                </div>
 
-                    {(feedbackSearch || feedbackRatingFilter !== 'all' || feedbackStatusFilter !== 'all') && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {activeTab === 'payments' && (
+                    <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', marginRight: '6px' }}>
                       <button
                         type="button"
-                        onClick={() => {
-                          setFeedbackSearch('')
-                          setFeedbackRatingFilter('all')
-                          setFeedbackStatusFilter('all')
-                        }}
-                        style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '8px', color: '#475569', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
+                        className={`dw-pill ${paymentSubTab === 'customer' ? 'active' : ''}`}
+                        style={{ border: 'none', cursor: 'pointer' }}
+                        onClick={() => setPaymentSubTab('customer')}
                       >
-                        Reset Filters
+                        <i className="fa-solid fa-credit-card"></i> Customer Collections
                       </button>
-                    )}
-                  </div>
-
-                  {filteredReviews.length === 0 ? (
-                    <div className="dw-empty-state">
-                      <div className="dw-empty-icon">
-                        <i className="fa-solid fa-comment-slash"></i>
-                      </div>
-                      <h3>No Feedback Reviews Found</h3>
-                      <p>{feedbackSearch || feedbackRatingFilter !== 'all' || feedbackStatusFilter !== 'all' ? 'Try adjusting your search or filter options.' : 'No customer reviews recorded yet. You can add one using the button above.'}</p>
-                    </div>
-                  ) : (
-                    <div className="dw-table-wrapper">
-                      <table className="dw-table">
-                        <thead>
-                          <tr>
-                            <th>Reviewer / Couple</th>
-                            <th>Event Date</th>
-                            <th>Rating</th>
-                            <th>Feedback Message</th>
-                            <th>Status & Visibility</th>
-                            <th style={{ textAlign: 'center' }}>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredReviews.map((r) => {
-                            const isApproved = (r.status || 'approved') === 'approved'
-                            return (
-                              <tr key={r.id}>
-                                <td>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <img
-                                      src={r.coupleImg || 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=400&q=80'}
-                                      alt={r.name}
-                                      style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }}
-                                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=400&q=80' }}
-                                    />
-                                    <div>
-                                      <strong>{r.name || 'Anonymous Client'}</strong>
-                                      <div className="dw-client-sub">{r.email || 'No email provided'}</div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span style={{ color: '#64748b', fontSize: '0.88rem', fontWeight: 500 }}>
-                                    {r.date || 'Not specified'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <div style={{ color: '#f59e0b', fontSize: '0.88rem' }}>
-                                      {Array.from({ length: 5 }).map((_, i) => (
-                                        <i key={i} className={`fa-star ${i < (Number(r.rating) || 5) ? 'fa-solid' : 'fa-regular'}`} style={{ marginRight: '1px' }}></i>
-                                      ))}
-                                    </div>
-                                    <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e293b' }}>
-                                      {Number(r.rating) || 5}.0
-                                    </span>
-                                  </div>
-                                </td>
-                                <td>
-                                  <div style={{ maxWidth: '400px', whiteSpace: 'normal', color: '#334155', fontSize: '0.88rem', lineHeight: '1.45', fontStyle: 'italic', background: '#fafaf9', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid #b8860b' }}>
-                                    "{r.text || 'No review text provided.'}"
-                                  </div>
-                                </td>
-                                <td>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
-                                    <span
-                                      className={`dw-badge-pill ${isApproved ? 'dw-badge-confirmed' : 'dw-badge-pending'}`}
-                                      style={{ cursor: 'pointer' }}
-                                      onClick={() => handleToggleReviewStatus(r.id)}
-                                      title="Click to toggle status"
-                                    >
-                                      {isApproved ? '✓ Approved' : '⏳ Pending'}
-                                    </span>
-                                    {r.featured && (
-                                      <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '0.72rem', fontWeight: 700, padding: '2px 7px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                        ★ Featured on Home
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td>
-                                  <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                                    {/* Toggle Visibility button */}
-                                    <button
-                                      type="button"
-                                      className="dw-btn-action"
-                                      onClick={() => handleToggleReviewStatus(r.id)}
-                                      title={isApproved ? 'Hide from website' : 'Approve for website'}
-                                      style={{ color: isApproved ? '#059669' : '#f59e0b', background: isApproved ? '#ecfdf5' : '#fef3c7', border: 'none' }}
-                                    >
-                                      <i className={`fa-solid ${isApproved ? 'fa-eye' : 'fa-eye-slash'}`}></i>
-                                    </button>
-
-                                    {/* Toggle Featured button */}
-                                    <button
-                                      type="button"
-                                      className="dw-btn-action"
-                                      onClick={() => handleToggleReviewFeatured(r.id)}
-                                      title={r.featured ? 'Remove from Homepage Featured' : 'Feature on Homepage'}
-                                      style={{ color: r.featured ? '#d97706' : '#94a3b8', background: r.featured ? '#fef3c7' : '#f1f5f9', border: 'none' }}
-                                    >
-                                      <i className={`fa-star ${r.featured ? 'fa-solid' : 'fa-regular'}`}></i>
-                                    </button>
-
-                                    {/* Edit button */}
-                                    <button
-                                      type="button"
-                                      className="dw-btn-action"
-                                      onClick={() => handleOpenFeedbackModal(r)}
-                                      title="Edit Review"
-                                      style={{ color: '#0284c7', background: '#f0f9ff', border: 'none' }}
-                                    >
-                                      <i className="fa-solid fa-pen-to-square"></i>
-                                    </button>
-
-                                    {/* Delete button */}
-                                    <button
-                                      type="button"
-                                      className="dw-btn-action action-delete"
-                                      onClick={() => handleDeleteReview(r.id)}
-                                      title="Delete Feedback"
-                                    >
-                                      <i className="fa-solid fa-trash-can"></i>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
+                      <button
+                        type="button"
+                        className={`dw-pill ${paymentSubTab === 'vendor' ? 'active' : ''}`}
+                        style={{ border: 'none', cursor: 'pointer' }}
+                        onClick={() => setPaymentSubTab('vendor')}
+                      >
+                        <i className="fa-solid fa-money-bill-transfer"></i> Vendor Payouts ({vendorPayoutRecords.length})
+                      </button>
                     </div>
                   )}
+
+                  <div className="dw-filter-pills">
+                    <button
+                      type="button"
+                      className={`dw-pill ${vendorPaymentFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setVendorPaymentFilter('all')}
+                    >
+                      All ({vendorPayoutRecords.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`dw-pill ${vendorPaymentFilter === 'pending' ? 'active' : ''}`}
+                      onClick={() => setVendorPaymentFilter('pending')}
+                    >
+                      <i className="fa-solid fa-clock"></i> Pending ({vendorPendingCount})
+                    </button>
+                    <button
+                      type="button"
+                      className={`dw-pill pill-confirmed ${vendorPaymentFilter === 'advance_paid' ? 'active' : ''}`}
+                      onClick={() => setVendorPaymentFilter('advance_paid')}
+                    >
+                      <i className="fa-solid fa-check"></i> Advance Paid ({vendorAdvancePaidCount})
+                    </button>
+                    <button
+                      type="button"
+                      className={`dw-pill ${vendorPaymentFilter === 'fully_paid' ? 'active' : ''}`}
+                      onClick={() => setVendorPaymentFilter('fully_paid')}
+                    >
+                      <i className="fa-solid fa-circle-check"></i> Fully Paid ({vendorFullyPaidCount})
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dw-table-wrapper">
+                <table className="dw-table">
+                  <thead>
+                    <tr>
+                      <th>Customer &amp; Booking</th>
+                      <th>Vendor Details</th>
+                      <th>Service Category</th>
+                      <th>Total Contract</th>
+                      <th>Advance Amount</th>
+                      <th>Remaining Amount</th>
+                      <th>Payment Status</th>
+                      <th style={{ textAlign: 'right' }}>Admin Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredVendorPayoutRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
+                          <i className="fa-solid fa-receipt" style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '10px', display: 'block' }}></i>
+                          <strong>No vendor payout records matching filter</strong>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>
+                            {vendorPayoutRecords.length === 0
+                              ? 'When vendors are allocated to customer bookings, their payment contracts will appear here.'
+                              : 'Try changing your search term or filter status.'}
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredVendorPayoutRecords.map((item) => {
+                        const payout = item.payout
+                        const isAdvancePaid = payout.payoutStatus === 'Advance Paid' || payout.payoutStatus === 'Fully Paid'
+                        const isFullyPaid = payout.payoutStatus === 'Fully Paid'
+                        const isPending = !isAdvancePaid && !isFullyPaid
+
+                        return (
+                          <tr key={`${item.bookingId}-${item.allocationId}`}>
+                            <td>
+                              <div className="dw-client-name">{item.customerName}</div>
+                              <div className="dw-client-sub">
+                                #{String(item.bookingId).slice(-6)} &bull; {item.eventDate || 'Date TBD'}
+                              </div>
+                              {item.venue && (
+                                <div className="dw-client-sub" style={{ fontSize: '0.74rem' }}>{item.venue}</div>
+                              )}
+                            </td>
+                            <td>
+                              <strong style={{ color: '#1e293b' }}>{item.vendorName}</strong>
+                              <div className="dw-client-sub">
+                                {item.vendorPhone || item.vendorEmail || 'Verified Partner'}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="dw-badge-pill dw-badge-neutral">{item.service}</span>
+                            </td>
+                            <td style={{ fontWeight: 700, fontSize: '0.92rem' }}>
+                              ₹{Number(payout.totalCost || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>₹{Number(payout.advanceAmount || 0).toLocaleString('en-IN')}</div>
+                              {isAdvancePaid ? (
+                                <span className="dw-pay-tag pay-fully" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                                  <i className="fa-solid fa-check"></i> Paid
+                                </span>
+                              ) : (
+                                <span className="dw-pay-tag pay-unpaid" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                                  <i className="fa-solid fa-clock"></i> Pending
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>₹{Number(payout.remainingAmount || 0).toLocaleString('en-IN')}</div>
+                              {isFullyPaid ? (
+                                <span className="dw-pay-tag pay-fully" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                                  <i className="fa-solid fa-check"></i> Paid
+                                </span>
+                              ) : (
+                                <span className="dw-pay-tag pay-unpaid" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                                  <i className="fa-solid fa-clock"></i> Pending
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {isFullyPaid ? (
+                                <span className="dw-status-tag status-confirmed">
+                                  <i className="fa-solid fa-circle-check"></i> Fully Paid
+                                </span>
+                              ) : isAdvancePaid ? (
+                                <span className="dw-status-tag status-pending">
+                                  <i className="fa-solid fa-hourglass-half"></i> Advance Paid
+                                </span>
+                              ) : (
+                                <span className="dw-status-tag status-rejected">
+                                  <i className="fa-solid fa-clock"></i> Pending
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div className="dw-actions-group" style={{ justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6 }}>
+                                {isPending && (
+                                  <button
+                                    className="dw-topbar-btn"
+                                    style={{ padding: '6px 12px', fontSize: '0.78rem', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', fontWeight: 600 }}
+                                    onClick={() => handleUpdateVendorPayout(item.bookingId, item.allocationId, 'Advance Paid')}
+                                    title="Record that Admin has paid the advance amount to the vendor"
+                                  >
+                                    <i className="fa-solid fa-check"></i> Mark Advance as Paid
+                                  </button>
+                                )}
+                                {isAdvancePaid && !isFullyPaid && (
+                                  <button
+                                    className="dw-topbar-btn"
+                                    style={{ padding: '6px 12px', fontSize: '0.78rem', background: '#10b981', color: '#ffffff', borderColor: '#059669', fontWeight: 600 }}
+                                    onClick={() => handleUpdateVendorPayout(item.bookingId, item.allocationId, 'Fully Paid')}
+                                    title="Record that Admin has paid the remaining amount to the vendor"
+                                  >
+                                    <i className="fa-solid fa-check-double"></i> Mark Remaining Payment as Paid
+                                  </button>
+                                )}
+                                {isFullyPaid && (
+                                  <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    <i className="fa-solid fa-circle-check"></i> All Paid
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ==============================================================
+                  TAB 4: CLIENTS & USERS
+                  ============================================================== */}
+          {activeTab === 'users' && (
+            <div className="dw-panel-card">
+              <div className="dw-panel-header">
+                <div className="dw-panel-title-area">
+                  <i className="fa-solid fa-users" style={{ color: '#b8860b' }}></i>
+                  <h3>Registered Website Clients ({users.length})</h3>
+                </div>
+              </div>
+
+              <div className="dw-table-wrapper">
+                <table className="dw-table">
+                  <thead>
+                    <tr>
+                      <th>User Details</th>
+                      <th>Email Address</th>
+                      <th>Phone Number</th>
+                      <th>Bookings Count</th>
+                      <th>Account Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => {
+                      const userBookings = bookings.filter(b => b.email && b.email.toLowerCase() === (u.email || '').toLowerCase())
+                      return (
+                        <tr key={u.id}>
+                          <td>
+                            <div className="dw-cell-client">
+                              <div className="dw-client-avatar-mini">
+                                <i className="fa-solid fa-user"></i>
+                              </div>
+                              <div className="dw-client-name">{u.name || 'Registered User'}</div>
+                            </div>
+                          </td>
+                          <td>{u.email}</td>
+                          <td>{u.phone || 'Not provided'}</td>
+                          <td>
+                            <span className="dw-badge-pill dw-badge-neutral">
+                              {userBookings.length} {userBookings.length === 1 ? 'Booking' : 'Bookings'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="dw-status-tag status-confirmed">Client</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ==============================================================
+                  TAB 6: VENDOR MANAGEMENT
+                  ============================================================== */}
+          {activeTab === 'vendor_mgmt' && (
+            <div className="dw-panel-card">
+              <div className="dw-panel-header">
+                <div className="dw-panel-title-area">
+                  <i className="fa-solid fa-users-gear" style={{ color: '#b8860b' }}></i>
+                  <h3>Vendor Management ({vendors.length})</h3>
+                </div>
+                <div className="dw-filter-pills">
+                  <span className="dw-pill pill-confirmed">
+                    <i className="fa-solid fa-user-check"></i> Active: {vendors.filter(v => v.accountStatus !== 'Inactive' && v.status !== 'Inactive').length}
+                  </span>
+                  <span className="dw-pill pill-pending">
+                    <i className="fa-solid fa-circle-check"></i> Available: {vendors.filter(v => v.availability !== false).length}
+                  </span>
+                </div>
+              </div>
+
+              {vendors.length === 0 ? (
+                <div className="dw-empty-state">
+                  <div className="dw-empty-icon">
+                    <i className="fa-solid fa-users-slash"></i>
+                  </div>
+                  <h3>No Vendors Registered</h3>
+                  <p>Vendors who register through the vendor registration form will appear here.</p>
+                </div>
+              ) : (
+                <div className="dw-table-wrapper">
+                  <table className="dw-table">
+                    <thead>
+                      <tr>
+                        <th>Vendor / Business</th>
+                        <th>Owner Name</th>
+                        <th>Service Category</th>
+                        <th>Contact</th>
+                        <th>Location</th>
+                        <th>Registration Date</th>
+                        <th>Availability</th>
+                        <th>Account Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vendors.map((v) => {
+                        const isAccountActive = v.accountStatus !== 'Inactive' && v.status !== 'Inactive'
+                        const isAvailable = v.availability !== false
+                        const regDate = v.registeredAt
+                          ? new Date(v.registeredAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : 'Seed Partner'
+
+                        const handleToggleStatus = async (vendorId, currentActive) => {
+                          const nextStatus = currentActive ? 'Inactive' : 'Active'
+                          try {
+                            await vendorsApi.updateStatus(vendorId, nextStatus)
+                            const updatedList = vendors.map(item =>
+                              String(item.id) === String(vendorId) ? { ...item, accountStatus: nextStatus } : item
+                            )
+                            setVendors(updatedList)
+                            localStorage.setItem('dw_vendors', JSON.stringify(updatedList))
+                            showNotification(`Vendor ${v.name || v.businessName} account status changed to ${nextStatus}.`)
+                          } catch (err) {
+                            showNotification('Failed to update vendor status: ' + (err.message || 'Error'))
+                          }
+                        }
+
+                        return (
+                          <tr key={v.id}>
+                            <td>
+                              <div className="dw-cell-client">
+                                <div className="dw-client-avatar-mini">
+                                  <span>{v.avatar || '✨'}</span>
+                                </div>
+                                <div>
+                                  <div className="dw-client-name">{v.businessName || v.name || 'Vendor'}</div>
+                                  <div className="dw-client-sub">{v.name && v.name !== v.businessName ? v.name : (v.service || 'Service')}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <strong>{v.ownerName || v.contactPerson || 'Not provided'}</strong>
+                            </td>
+                            <td>
+                              <span className="dw-badge-pill dw-badge-neutral">
+                                {v.service || 'General'}
+                              </span>
+                            </td>
+                            <td>
+                              <div>{v.email}</div>
+                              <div className="dw-client-sub">{v.phone || 'Not provided'}</div>
+                            </td>
+                            <td>
+                              <div>{v.city || v.location || 'Ahmedabad'}</div>
+                            </td>
+                            <td>
+                              <span className="dw-client-sub">{regDate}</span>
+                            </td>
+                            <td>
+                              <span className={`dw-pill ${isAvailable ? 'pill-confirmed' : 'pill-rejected'}`} style={{ fontSize: '0.72rem' }}>
+                                <i className={`fa-solid ${isAvailable ? 'fa-circle-check' : 'fa-circle-xmark'}`} style={{ marginRight: '4px' }}></i>
+                                {isAvailable ? 'Available' : 'Busy / Away'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`dw-pill ${isAccountActive ? 'pill-confirmed' : 'pill-rejected'}`} style={{ fontSize: '0.72rem' }}>
+                                {isAccountActive ? 'Active' : 'Deactivated'}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="dw-actions-group">
+                                <button
+                                  type="button"
+                                  className={`dw-btn-action dw-btn-action-wide ${isAccountActive ? 'action-delete' : ''}`}
+                                  style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                                  onClick={() => handleToggleStatus(v.id, isAccountActive)}
+                                  title={isAccountActive ? 'Deactivate vendor account' : 'Activate vendor account'}
+                                >
+                                  <i className={`fa-solid ${isAccountActive ? 'fa-user-slash' : 'fa-user-check'}`}></i>{' '}
+                                  {isAccountActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="dw-btn-action dw-btn-action-wide"
+                                  style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                                  onClick={() => handleTabChange('task_assign')}
+                                  title="Go to task assignment"
+                                >
+                                  <i className="fa-solid fa-clipboard-list"></i> Assign
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'task_assign' && (
+            <VendorTaskAssignment
+              vendors={vendors}
+              users={users}
+              bookings={bookings}
+              setBookings={setBookings}
+              vendorTasks={vendorTasks}
+              setVendorTasks={setVendorTasks}
+              showNotification={showNotification}
+            />
+          )}
+
+          {/* ==============================================================
+                  TAB 5: INQUIRIES & MESSAGES
+                  ============================================================== */}
+          {activeTab === 'inquiries' && (
+            <div className="dw-panel-card">
+              <div className="dw-panel-header">
+                <div className="dw-panel-title-area">
+                  <i className="fa-solid fa-envelope-open-text" style={{ color: '#b8860b' }}></i>
+                  <h3>Customer Contact Inquiries ({contacts.length})</h3>
+                </div>
+              </div>
+
+              {contacts.length === 0 ? (
+                <div className="dw-empty-state">
+                  <div className="dw-empty-icon">
+                    <i className="fa-solid fa-inbox"></i>
+                  </div>
+                  <h3>No Inquiries Yet</h3>
+                  <p>Messages submitted through the contact form will appear here.</p>
+                </div>
+              ) : (
+                <div className="dw-table-wrapper">
+                  <table className="dw-table">
+                    <thead>
+                      <tr>
+                        <th>Sender</th>
+                        <th>Contact</th>
+                        <th>Subject / Inquiry Message</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contacts.map((c) => (
+                        <tr key={c.id}>
+                          <td>
+                            <strong>{c.name || 'Website Visitor'}</strong>
+                          </td>
+                          <td>
+                            <div>{c.email}</div>
+                            {c.phone && <div className="dw-client-sub">{c.phone}</div>}
+                          </td>
+                          <td>
+                            <div style={{ maxWidth: '450px', whiteSpace: 'normal' }}>
+                              {c.message || c.subject || 'Inquiry message'}
+                            </div>
+                          </td>
+                          <td>
+                            <button
+                              className="dw-btn-action action-delete"
+                              onClick={() => handleDeleteContact(c.id)}
+                              title="Delete Message"
+                            >
+                              <i className="fa-solid fa-trash-can"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==============================================================
+                  TAB 6: CUSTOMER FEEDBACK & REVIEWS MANAGEMENT
+                  ============================================================== */}
+          {activeTab === 'feedback' && (
+            <div className="dw-panel-card">
+              <div className="dw-panel-header" style={{ flexWrap: 'wrap', gap: '15px' }}>
+                <div className="dw-panel-title-area">
+                  <i className="fa-solid fa-star" style={{ color: '#f59e0b' }}></i>
+                  <h3>Customer Feedback & Reviews Management ({filteredReviews.length})</h3>
+                </div>
+                <button
+                  type="button"
+                  className="dw-topbar-btn dw-topbar-btn-primary"
+                  onClick={() => handleOpenFeedbackModal()}
+                  style={{ background: '#b8860b', borderColor: '#b8860b', color: '#fff' }}
+                >
+                  <i className="fa-solid fa-plus" style={{ marginRight: '6px' }}></i> Add New Feedback
+                </button>
+              </div>
+
+              {/* Top Stats Strip */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', padding: '20px 24px 10px' }}>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-comments"></i>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Total Reviews</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1e293b' }}>{reviews.length}</div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-star"></i>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Avg Rating</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {averageRating} <span style={{ fontSize: '0.85rem' }}>★</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-award"></i>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>5-Star Reviews</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#059669' }}>{fiveStarReviewsCount}</div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#fdf4ff', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                    <i className="fa-solid fa-house"></i>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Featured on Home</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#7e22ce' }}>{featuredReviewsCount}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar */}
+              <div style={{ padding: '12px 24px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ flex: '1 1 250px', position: 'relative' }}>
+                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}></i>
+                  <input
+                    type="text"
+                    placeholder="Search by client name, email or message..."
+                    value={feedbackSearch}
+                    onChange={(e) => setFeedbackSearch(e.target.value)}
+                    style={{ width: '100%', padding: '9px 12px 9px 36px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '0.88rem', outline: 'none' }}
+                  />
+                  {feedbackSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackSearch('')}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={feedbackRatingFilter}
+                  onChange={(e) => setFeedbackRatingFilter(e.target.value)}
+                  style={{ padding: '9px 14px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '0.88rem', background: '#fff', outline: 'none' }}
+                >
+                  <option value="all">⭐ All Ratings</option>
+                  <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
+                  <option value="4">⭐⭐⭐⭐ 4 Stars</option>
+                  <option value="3">⭐⭐⭐ 3 Stars</option>
+                  <option value="2">⭐⭐ 2 Stars</option>
+                  <option value="1">⭐ 1 Star</option>
+                </select>
+
+                <select
+                  value={feedbackStatusFilter}
+                  onChange={(e) => setFeedbackStatusFilter(e.target.value)}
+                  style={{ padding: '9px 14px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '0.88rem', background: '#fff', outline: 'none' }}
+                >
+                  <option value="all">All Visibility</option>
+                  <option value="approved">✓ Approved (Visible)</option>
+                  <option value="pending">⏳ Pending (Hidden)</option>
+                  <option value="featured">★ Featured on Home</option>
+                </select>
+
+                {(feedbackSearch || feedbackRatingFilter !== 'all' || feedbackStatusFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFeedbackSearch('')
+                      setFeedbackRatingFilter('all')
+                      setFeedbackStatusFilter('all')
+                    }}
+                    style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '8px', color: '#475569', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+
+              {filteredReviews.length === 0 ? (
+                <div className="dw-empty-state">
+                  <div className="dw-empty-icon">
+                    <i className="fa-solid fa-comment-slash"></i>
+                  </div>
+                  <h3>No Feedback Reviews Found</h3>
+                  <p>{feedbackSearch || feedbackRatingFilter !== 'all' || feedbackStatusFilter !== 'all' ? 'Try adjusting your search or filter options.' : 'No customer reviews recorded yet. You can add one using the button above.'}</p>
+                </div>
+              ) : (
+                <div className="dw-table-wrapper">
+                  <table className="dw-table">
+                    <thead>
+                      <tr>
+                        <th>Reviewer / Couple</th>
+                        <th>Event Date</th>
+                        <th>Rating</th>
+                        <th>Feedback Message</th>
+                        <th>Status & Visibility</th>
+                        <th style={{ textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredReviews.map((r) => {
+                        const isApproved = (r.status || 'approved') === 'approved'
+                        return (
+                          <tr key={r.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <img
+                                  src={r.coupleImg || 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=400&q=80'}
+                                  alt={r.name}
+                                  style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }}
+                                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=400&q=80' }}
+                                />
+                                <div>
+                                  <strong>{r.name || 'Anonymous Client'}</strong>
+                                  <div className="dw-client-sub">{r.email || 'No email provided'}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ color: '#64748b', fontSize: '0.88rem', fontWeight: 500 }}>
+                                {r.date || 'Not specified'}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ color: '#f59e0b', fontSize: '0.88rem' }}>
+                                  {Array.from({ length: 5 }).map((_, i) => (
+                                    <i key={i} className={`fa-star ${i < (Number(r.rating) || 5) ? 'fa-solid' : 'fa-regular'}`} style={{ marginRight: '1px' }}></i>
+                                  ))}
+                                </div>
+                                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e293b' }}>
+                                  {Number(r.rating) || 5}.0
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ maxWidth: '400px', whiteSpace: 'normal', color: '#334155', fontSize: '0.88rem', lineHeight: '1.45', fontStyle: 'italic', background: '#fafaf9', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid #b8860b' }}>
+                                "{r.text || 'No review text provided.'}"
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                <span
+                                  className={`dw-badge-pill ${isApproved ? 'dw-badge-confirmed' : 'dw-badge-pending'}`}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => handleToggleReviewStatus(r.id)}
+                                  title="Click to toggle status"
+                                >
+                                  {isApproved ? '✓ Approved' : '⏳ Pending'}
+                                </span>
+                                {r.featured && (
+                                  <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '0.72rem', fontWeight: 700, padding: '2px 7px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                    ★ Featured on Home
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                                {/* Toggle Visibility button */}
+                                <button
+                                  type="button"
+                                  className="dw-btn-action"
+                                  onClick={() => handleToggleReviewStatus(r.id)}
+                                  title={isApproved ? 'Hide from website' : 'Approve for website'}
+                                  style={{ color: isApproved ? '#059669' : '#f59e0b', background: isApproved ? '#ecfdf5' : '#fef3c7', border: 'none' }}
+                                >
+                                  <i className={`fa-solid ${isApproved ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+                                </button>
+
+                                {/* Toggle Featured button */}
+                                <button
+                                  type="button"
+                                  className="dw-btn-action"
+                                  onClick={() => handleToggleReviewFeatured(r.id)}
+                                  title={r.featured ? 'Remove from Homepage Featured' : 'Feature on Homepage'}
+                                  style={{ color: r.featured ? '#d97706' : '#94a3b8', background: r.featured ? '#fef3c7' : '#f1f5f9', border: 'none' }}
+                                >
+                                  <i className={`fa-star ${r.featured ? 'fa-solid' : 'fa-regular'}`}></i>
+                                </button>
+
+                                {/* Edit button */}
+                                <button
+                                  type="button"
+                                  className="dw-btn-action"
+                                  onClick={() => handleOpenFeedbackModal(r)}
+                                  title="Edit Review"
+                                  style={{ color: '#0284c7', background: '#f0f9ff', border: 'none' }}
+                                >
+                                  <i className="fa-solid fa-pen-to-square"></i>
+                                </button>
+
+                                {/* Delete button */}
+                                <button
+                                  type="button"
+                                  className="dw-btn-action action-delete"
+                                  onClick={() => handleDeleteReview(r.id)}
+                                  title="Delete Feedback"
+                                >
+                                  <i className="fa-solid fa-trash-can"></i>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
 
         </main>

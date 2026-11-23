@@ -94,7 +94,7 @@ function Footer() {
                 <span className="contact-icon" aria-hidden="true">📞</span>
                 <div className="contact-item-text">
                   <span className="contact-label">Phone (Tap to call)</span>
-                  <span className="contact-value">(555) 123-4567</span>
+                  <span className="contact-value">(+91) 78620 17646.</span>
                 </div>
               </a>
               <a href="mailto:info@dreamwedding.com" className="footer-contact-item footer-interactive-link" aria-label="Email Dream Wedding">
@@ -104,13 +104,6 @@ function Footer() {
                   <span className="contact-value">info@dreamwedding.com</span>
                 </div>
               </a>
-              <div className="footer-contact-item">
-                <span className="contact-icon" aria-hidden="true">🕒</span>
-                <div className="contact-item-text">
-                  <span className="contact-label">Working Hours</span>
-                  <span>Mon – Sat: 9:00 AM – 7:00 PM</span>
-                </div>
-              </div>
             </div>
           </div>
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import '../style.css'
 import '../bookings.css'
-import { bookingsApi } from '../services/api'
+import { bookingsApi, parseRupeeAmount } from '../services/api'
 
 // Helper function to pick relevant Font Awesome icon
 function getServiceIcon(service = '', category = '') {
@@ -303,6 +303,30 @@ function Bookings() {
     return d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
   }
 
+  /**
+   * Parse a booking date string into a JS Date.
+   * Handles "2026-10-15" (ISO) and "June 2024" (Month Year) formats.
+   */
+  const parseFunctionDate = (dateStr) => {
+    if (!dateStr) return null
+    const iso = new Date(dateStr)
+    if (!isNaN(iso.getTime())) return iso
+    const monthYear = new Date(`1 ${dateStr}`)
+    if (!isNaN(monthYear.getTime())) return monthYear
+    return null
+  }
+
+  /**
+   * Returns true if the function/wedding date has already passed today.
+   */
+  const isFunctionPassed = (dateStr) => {
+    const fnDate = parseFunctionDate(dateStr)
+    if (!fnDate) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return fnDate < today
+  }
+
   if (!isLoggedIn) {
     return (
       <section className="booking-section">
@@ -380,6 +404,178 @@ function Bookings() {
                   const isAdvancePaid = !isFullyPaid && (booking.advancePaid || booking.paymentStatus === 'Advance Paid')
                   const isUnpaid = !isFullyPaid && !isAdvancePaid
 
+                  // Function date logic
+                  const eventPassed = isFunctionPassed(booking.date)
+                  // "Function Done" = event passed AND fully settled (100% paid)
+                  const isFunctionDone = eventPassed && !!isFullyPaid
+
+                  // Compute financial breakdown for payment summary
+                  const advNum = parseRupeeAmount(booking.advanceAmount)
+                  const balNum = parseRupeeAmount(booking.balanceAmount)
+                  const budgetNum = parseRupeeAmount(booking.budget)
+
+                  let totalAmt = 0
+                  if (booking.totalAmount) {
+                    totalAmt = parseRupeeAmount(booking.totalAmount)
+                  } else if (booking.customerRevenue) {
+                    totalAmt = Number(booking.customerRevenue)
+                  } else if (advNum > 0 && balNum > 0) {
+                    totalAmt = advNum + balNum
+                  } else if (advNum > 0) {
+                    totalAmt = advNum * 2
+                  } else if (budgetNum > 0) {
+                    totalAmt = budgetNum
+                  } else {
+                    totalAmt = 50000
+                  }
+
+                  let advanceAmt = 0
+                  if (isFullyPaid || isAdvancePaid) {
+                    advanceAmt = advNum > 0 ? advNum : Math.round(totalAmt / 2)
+                  }
+
+                  let remainingBal = 0
+                  if (isFullyPaid) {
+                    remainingBal = 0
+                  } else if (isAdvancePaid) {
+                    remainingBal = balNum > 0 ? balNum : (totalAmt - advanceAmt > 0 ? totalAmt - advanceAmt : Math.round(totalAmt / 2))
+                  } else {
+                    remainingBal = totalAmt
+                  }
+
+                  // COMPACT CARD FOR COMPLETED FUNCTIONS (Confirmed bookings whose function date has passed)
+                  if (isConfirmed && eventPassed) {
+                    return (
+                      <div className="modern-booking-card compact-function-done-card" key={booking.id || idx}>
+                        {/* 1. Header: Service / Function Name, Function Date & Function Done Status */}
+                        <div className="compact-done-header">
+                          <div className="service-title-wrap">
+                            <span className="service-category-icon">
+                              {getServiceIcon(booking.service, booking.category)}
+                            </span>
+                            <div>
+                              <h3 className="booking-service-name" style={{ margin: 0, fontSize: '1.25rem', color: '#2b241c' }}>
+                                {booking.service || 'Wedding Service'}
+                              </h3>
+                              <div className="compact-function-date">
+                                <i className="fa-solid fa-calendar-check" style={{ color: '#b8860b', marginRight: '6px' }}></i>
+                                <span>Function Date: <strong>{formatDate(booking.date)}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3. Function Done Status */}
+                          <div
+                            className="payment-status-badge paid"
+                            style={{
+                              background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                              color: '#15803d',
+                              border: '1.5px solid #86efac',
+                              padding: '8px 16px',
+                              fontSize: '0.88rem',
+                              fontWeight: 700,
+                              borderRadius: '999px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}
+                          >
+                            <i className="fa-solid fa-champagne-glasses"></i>
+                            <span>Function Done</span>
+                          </div>
+                        </div>
+
+                        {/* 4. Payment Summary: Total Amount, Advance Paid, Remaining Balance, Payment Status */}
+                        <div className="compact-payment-summary-box">
+                          <div className="compact-summary-title">
+                            <i className="fa-solid fa-receipt" style={{ color: '#b8860b' }}></i>
+                            <span>Payment Summary</span>
+                          </div>
+                          <div className="compact-summary-grid">
+                            <div className="compact-summary-item">
+                              <span className="compact-summary-label">Total Amount</span>
+                              <strong className="compact-summary-val">₹{Number(totalAmt).toLocaleString('en-IN')}</strong>
+                            </div>
+                            <div className="compact-summary-item">
+                              <span className="compact-summary-label">Advance Paid</span>
+                              <strong className="compact-summary-val" style={{ color: advanceAmt > 0 ? '#15803d' : '#64748b' }}>
+                                ₹{Number(advanceAmt).toLocaleString('en-IN')}
+                              </strong>
+                            </div>
+                            <div className="compact-summary-item">
+                              <span className="compact-summary-label">Remaining Balance</span>
+                              <strong
+                                className="compact-summary-val"
+                                style={{ color: remainingBal > 0 ? '#d97706' : '#15803d' }}
+                              >
+                                ₹{Number(remainingBal).toLocaleString('en-IN')}
+                              </strong>
+                            </div>
+                            <div className="compact-summary-item">
+                              <span className="compact-summary-label">Payment Status</span>
+                              <span
+                                className={`payment-status-badge ${isFullyPaid ? 'paid' : (isAdvancePaid ? 'advance' : 'pending')}`}
+                                style={{ fontSize: '0.82rem', padding: '5px 12px', marginTop: '2px', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}
+                              >
+                                {isFullyPaid ? (
+                                  <>
+                                    <i className="fa-solid fa-circle-check" style={{ marginRight: 5 }}></i> Fully Paid
+                                  </>
+                                ) : isAdvancePaid ? (
+                                  <>
+                                    <i className="fa-solid fa-hourglass-half" style={{ marginRight: 5 }}></i> Balance Pending
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fa-solid fa-clock" style={{ marginRight: 5 }}></i> Payment Pending
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* PAYMENT CONDITIONS & ACTIONS */}
+                        <div className="compact-done-actions">
+                          {isFullyPaid ? (
+                            <button
+                              type="button"
+                              className="btn-print-receipt"
+                              onClick={() => handleOpenPayment(booking, 'view_full')}
+                              title="Print or view payment receipt"
+                              style={{ padding: '9px 18px', fontSize: '0.88rem' }}
+                            >
+                              <i className="fa-solid fa-print" style={{ marginRight: '6px' }}></i> Print Payment Receipt
+                            </button>
+                          ) : (
+                            <>
+                              {isAdvancePaid && (
+                                <button
+                                  type="button"
+                                  className="btn-print-receipt"
+                                  onClick={() => handleOpenPayment(booking, 'view_advance')}
+                                  title="View Advance Payment Receipt"
+                                  style={{ padding: '9px 18px', fontSize: '0.88rem' }}
+                                >
+                                  <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i> Advance Receipt
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="btn-pay-balance"
+                                onClick={() => handleOpenPayment(booking, 'balance')}
+                                title="Pay remaining balance for this completed event"
+                                style={{ padding: '9px 18px', fontSize: '0.88rem' }}
+                              >
+                                <i className="fa-solid fa-hand-holding-dollar" style={{ marginRight: '6px' }}></i> Pay Remaining Balance
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+
                   return (
                     <div className="modern-booking-card" key={booking.id || idx}>
                       {/* Card Header: Service name & Badges */}
@@ -426,6 +622,22 @@ function Bookings() {
                           {isRejected && (
                             <div className="booking-status-badge rejected">
                               <i className="fa-solid fa-ban"></i> Booking Unavailable
+                            </div>
+                          )}
+
+                          {/* Function Done Badge — event date passed */}
+                          {eventPassed && (
+                            <div
+                              className="payment-status-badge paid"
+                              style={{
+                                background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                                color: '#15803d',
+                                border: '1.5px solid #86efac',
+                                fontWeight: 700
+                              }}
+                            >
+                              <i className="fa-solid fa-champagne-glasses"></i>
+                              {isFunctionDone ? ' Function Done' : ' Function Date Passed'}
                             </div>
                           )}
                         </div>
@@ -636,26 +848,43 @@ function Bookings() {
                             <i className="fa-solid fa-pen-to-square"></i> Edit
                           </button>
 
-                          {/* PAYMENT BUTTON WITH ADMIN GATE & 50/50 SPLIT */}
+                          {/* PAYMENT BUTTON — Admin approval gate is the first priority */}
                           {isRejected ? (
+                            /* ── REJECTED: booking not available ── */
                             <button
                               type="button"
                               className="btn-pay-locked"
                               disabled
-                              title="This booking is not available"
+                              title="This booking has been rejected"
                             >
-                              <i className="fa-solid fa-ban"></i> Unavailable
+                              <i className="fa-solid fa-ban"></i> Booking Rejected
                             </button>
+
                           ) : isPending ? (
+                            /* ── PENDING ADMIN APPROVAL: all payment locked regardless of date ── */
                             <button
                               type="button"
                               className="btn-pay-locked"
-                              onClick={() => window.showToast('Payment is locked pending availability confirmation. You will be notified once your booking is confirmed.', 'warning', 5000)}
-                              title="Payment will be enabled once availability is confirmed"
+                              onClick={() => window.showToast('Your booking is awaiting admin approval. Payment will be available after confirmation.', 'warning', 5000)}
+                              title="Awaiting admin approval — payment will unlock after confirmation"
                             >
-                              <i className="fa-solid fa-lock"></i> 🔒 Payment Locked
+                              <i className="fa-solid fa-lock"></i> 🔒 Awaiting Approval
                             </button>
+
+                          ) : isFunctionDone ? (
+                            /* ── CONFIRMED + EVENT PASSED + FULLY PAID: Function Done ── */
+                            <button
+                              type="button"
+                              className="btn-payment-done"
+                              onClick={() => handleOpenPayment(booking, 'view_full')}
+                              title="View Full Payment Receipt — event completed & fully settled"
+                              style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', color: '#15803d', borderColor: '#86efac' }}
+                            >
+                              <i className="fa-solid fa-champagne-glasses"></i> Function Done · Full Receipt
+                            </button>
+
                           ) : isFullyPaid ? (
+                            /* ── CONFIRMED + FULLY PAID (event upcoming): receipt only ── */
                             <button
                               type="button"
                               className="btn-payment-done"
@@ -664,7 +893,10 @@ function Bookings() {
                             >
                               <i className="fa-solid fa-receipt"></i> Full Receipt (100% Paid)
                             </button>
+
                           ) : isAdvancePaid ? (
+                            /* ── CONFIRMED + 50% ADVANCE PAID: allow balance payment
+                               (works for both upcoming and past-event date) ── */
                             <>
                               <button
                                 type="button"
@@ -678,12 +910,15 @@ function Bookings() {
                                 type="button"
                                 className="btn-pay-balance"
                                 onClick={() => handleOpenPayment(booking, 'balance')}
-                                title="Pay remaining 50% balance after your event"
+                                title={eventPassed ? 'Complete remaining 50% balance payment' : 'Pay remaining 50% balance after your event'}
                               >
-                                <i className="fa-solid fa-hand-holding-dollar"></i> Pay Balance (50%)
+                                <i className="fa-solid fa-hand-holding-dollar"></i>
+                                {eventPassed ? ' Pay Pending Balance (50%)' : ' Pay Balance (50%)'}
                               </button>
                             </>
+
                           ) : (
+                            /* ── CONFIRMED + UNPAID: enable 50% advance payment ── */
                             <button
                               type="button"
                               className="btn-pay-now"
@@ -705,22 +940,66 @@ function Bookings() {
                         </div>
 
 
-                      {/* Payment Locked Info Banner — shown while pending */}
+                      {/* ── INFO BANNERS (shown below action buttons) ── */}
+
+                      {/* PENDING: awaiting admin approval */}
                       {isPending && (
                         <div className="payment-locked-banner">
-                          <div className="locked-banner-icon">🔒</div>
+                          <div className="locked-banner-icon">🕐</div>
                           <div className="locked-banner-body">
-                            <strong>Payment Locked</strong>
-                            <p>Your booking request has been received successfully. We will confirm availability within 2–3 days. Once availability is confirmed, the payment option will be enabled.</p>
+                            <strong>Awaiting Admin Approval</strong>
+                            <p>
+                              Your booking request has been received. We will confirm availability within 2–3 days.
+                              Payment options will be enabled only after admin confirmation.
+                              {eventPassed && (
+                                <span style={{ display: 'block', marginTop: 6, color: '#92400e', fontWeight: 600 }}>
+                                  ⚠️ Note: Your selected date has already passed. Please contact us to reschedule.
+                                </span>
+                              )}
+                            </p>
                           </div>
                         </div>
                       )}
+
+                      {/* REJECTED */}
                       {isRejected && (
-                          <div className="booking-inline-note rejected-note">
-                            <i className="fa-solid fa-triangle-exclamation"></i>
-                            <span>This date or service is currently <strong>not available</strong>. Please contact us or book a different date.</span>
+                        <div className="booking-inline-note rejected-note">
+                          <i className="fa-solid fa-triangle-exclamation"></i>
+                          <span>This booking has been <strong>rejected</strong>. This date or service is not available. Please contact us or book a different date.</span>
+                        </div>
+                      )}
+
+                      {/* CONFIRMED + EVENT PASSED: show relevant contextual message */}
+                      {isConfirmed && eventPassed && (
+                        <div
+                          className="payment-locked-banner"
+                          style={{
+                            background: isFunctionDone
+                              ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
+                              : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                            border: `1.5px solid ${isFunctionDone ? '#86efac' : '#fcd34d'}`
+                          }}
+                        >
+                          <div className="locked-banner-icon">{isFunctionDone ? '🎊' : '📅'}</div>
+                          <div className="locked-banner-body">
+                            <strong style={{ color: isFunctionDone ? '#15803d' : '#92400e' }}>
+                              {isFunctionDone
+                                ? 'Function Successfully Completed!'
+                                : isAdvancePaid
+                                  ? 'Function Date Has Passed — Balance Pending'
+                                  : 'Function Date Has Passed'}
+                            </strong>
+                            <p style={{ color: isFunctionDone ? '#166534' : '#78350f' }}>
+                              {isFunctionDone
+                                ? 'Your wedding event has been completed and all payments are fully settled. We wish you a lifetime of happiness! 🌸'
+                                : isAdvancePaid
+                                  ? 'Your wedding date has passed. Please complete the remaining 50% balance payment at your earliest convenience.'
+                                  : 'Your wedding date has passed. Please contact us to complete your pending payment settlement.'
+                              }
+                            </p>
                           </div>
-                        )}
+                        </div>
+                      )}
 
                     </div>
                     </div>

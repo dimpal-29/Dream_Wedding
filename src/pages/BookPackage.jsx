@@ -7,7 +7,7 @@ import { bookingsApi } from '../services/api'
 const PACKAGE_DETAILS = {
   'Essential Package': {
     name: 'Essential Package',
-    price: '$2,499 Starting',
+    price: '₹2,00,000 Starting',
     guests: 'Up to 50 Guests',
     desc: 'Perfect for intimate gatherings with close family and friends.',
     features: [
@@ -21,7 +21,7 @@ const PACKAGE_DETAILS = {
   },
   'Premium Package': {
     name: 'Premium Package',
-    price: '$4,999 Starting',
+    price: '₹4,00,000 Starting',
     guests: 'Up to 150 Guests',
     badge: 'Most Popular',
     desc: 'Our complete and most popular celebration package with luxury styling.',
@@ -37,7 +37,7 @@ const PACKAGE_DETAILS = {
   },
   'Luxury Package': {
     name: 'Luxury Package',
-    price: '$8,999 Starting',
+    price: '₹7,50,000 Starting',
     guests: '300+ Guests',
     badge: 'Royal Experience',
     desc: 'The ultimate royal grand wedding experience with bespoke planning.',
@@ -262,7 +262,7 @@ function BookPackage() {
                 >
                   <span className="package-card-icon">🌸</span>
                   <div className="package-card-name">Essential</div>
-                  <div className="package-card-price">$2,499</div>
+                  <div className="package-card-price">₹2,00,000</div>
                   <div className="package-card-guests">Up to 50 Guests</div>
                   <div className="package-card-check">✓</div>
                 </div>
@@ -275,7 +275,7 @@ function BookPackage() {
                   <span className="package-card-ribbon">Most Popular</span>
                   <span className="package-card-icon">💎</span>
                   <div className="package-card-name">Premium</div>
-                  <div className="package-card-price">$4,999</div>
+                  <div className="package-card-price">₹4,00,000</div>
                   <div className="package-card-guests">Up to 150 Guests</div>
                   <div className="package-card-check">✓</div>
                 </div>
@@ -288,7 +288,7 @@ function BookPackage() {
                   <span className="package-card-ribbon">Royal Luxury</span>
                   <span className="package-card-icon">👑</span>
                   <div className="package-card-name">Luxury</div>
-                  <div className="package-card-price">$8,999</div>
+                  <div className="package-card-price">₹7,50,000</div>
                   <div className="package-card-guests">300+ Guests</div>
                   <div className="package-card-check">✓</div>
                 </div>
@@ -318,9 +318,9 @@ function BookPackage() {
                   onChange={handleChange}
                   style={{ background: '#faf8f5', borderColor: '#e4d8c2', fontWeight: 600 }}
                 >
-                  <option value="Essential Package">Essential Package ($2,499) — Up to 50 Guests</option>
-                  <option value="Premium Package">Premium Package ($4,999) — Up to 150 Guests (Most Popular)</option>
-                  <option value="Luxury Package">Luxury Package ($8,999) — 300+ Guests (Royal All-Inclusive)</option>
+                  <option value="Essential Package">Essential Package (₹2,00,000) — Up to 50 Guests</option>
+                  <option value="Premium Package">Premium Package (₹4,00,000) — Up to 150 Guests (Most Popular)</option>
+                  <option value="Luxury Package">Luxury Package (₹7,50,000) — 300+ Guests (Royal All-Inclusive)</option>
                   <option value="Custom Package">Custom Tailored Wedding Package (Bespoke Quote)</option>
                 </select>
               </div>

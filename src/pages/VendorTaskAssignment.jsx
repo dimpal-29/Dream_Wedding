@@ -34,6 +34,38 @@ function statusPillClass(status) {
   return 'dw-pill pill-pending'
 }
 
+// Helper to check if a booking matches the vendor's service category
+function isServiceMatching(bookingService, bookingCategory, bookingNotes, vendorService) {
+  if (!vendorService) return true
+  const v = String(vendorService).toLowerCase().trim()
+  const bs = String(bookingService || '').toLowerCase()
+  const bc = String(bookingCategory || '').toLowerCase()
+  const bn = String(bookingNotes || '').toLowerCase()
+  const combined = `${bs} ${bc} ${bn}`
+
+  // Full turnkey packages encompass all major wedding services
+  if (combined.includes('package')) return true
+
+  // Direct match or substring
+  if (combined.includes(v)) return true
+
+  // Canonical wedding service keyword matching
+  const serviceKeywords = {
+    photography: ['photo', 'video', 'shoot', 'camera', 'cinema'],
+    decoration: ['decor', 'mandap', 'flower', 'floral', 'stage'],
+    catering: ['cater', 'food', 'buffet', 'cake', 'dining'],
+    makeup: ['makeup', 'styling', 'bridal'],
+    dj: ['dj', 'sound', 'music', 'sangeet'],
+    music: ['music', 'band', 'dj', 'sound', 'sangeet'],
+    venue: ['venue', 'hall', 'resort', 'lawn', 'banquet'],
+    mehendi: ['mehendi', 'mehndi', 'henna'],
+    transport: ['transport', 'car', 'travel', 'bus']
+  }
+
+  const keywords = serviceKeywords[v] || [v]
+  return keywords.some(k => combined.includes(k))
+}
+
 function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBookings, vendorTasks = [], setVendorTasks, showNotification }) {
   const [taskFilter, setTaskFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -48,15 +80,71 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
     [vendors]
   )
 
-  // Bookings that still need a vendor confirmed (not yet confirmed/rejected).
-  // Assigning a vendor to one of these, once approved, is what unlocks that
-  // customer's payment via the existing booking confirmation flow.
-  const assignableBookings = useMemo(
-    () => (bookings || [])
-      .filter(b => b.bookingStatus !== 'confirmed' && b.bookingStatus !== 'rejected')
-      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))),
-    [bookings]
+  const selectedVendor = useMemo(
+    () => activeVendors.find(v => String(v.id) === String(form.vendorId)),
+    [activeVendors, form.vendorId]
   )
+
+  // Eligible bookings for vendor assignment:
+  // 1. Pending bookings (waiting on vendor assignment)
+  // 2. Confirmed bookings that do not yet have a vendor assignment for the selected service
+  // 3. Filtered according to the selected vendor's service category
+  // 4. Excludes duplicate assignments of the same vendor to the same service
+  const assignableBookings = useMemo(() => {
+    const vendorService = selectedVendor?.service || form.service || ''
+
+    return (bookings || []).filter(b => {
+      // Never show rejected bookings
+      if (b.bookingStatus === 'rejected') return false
+
+      // Filter bookings according to the selected vendor's service category
+      if (vendorService && !isServiceMatching(b.service, b.category, b.notes || b.customSummary, vendorService)) {
+        return false
+      }
+
+      // Prevent duplicate assignment: exclude if this vendor is ALREADY assigned to this service on this booking
+      if (selectedVendor) {
+        const alreadyAllocatedThisVendor = Array.isArray(b.vendorAllocations) &&
+          b.vendorAllocations.some(a =>
+            String(a.vendorId) === String(selectedVendor.id) &&
+            (!vendorService || (a.service || '').toLowerCase() === vendorService.toLowerCase())
+          )
+
+        const alreadyTaskedThisVendor = (vendorTasks || []).some(t =>
+          String(t.bookingId) === String(b.id) &&
+          String(t.vendorId) === String(selectedVendor.id) &&
+          (!vendorService || (t.service || '').toLowerCase() === vendorService.toLowerCase()) &&
+          t.status !== VENDOR_TASK_STATUS.REJECTED
+        )
+
+        if (alreadyAllocatedThisVendor || alreadyTaskedThisVendor) {
+          return false
+        }
+      }
+
+      // Pending bookings waiting for vendor confirmation are always eligible
+      if (b.bookingStatus !== 'confirmed') {
+        return true
+      }
+
+      // Confirmed bookings are eligible if they do not yet have a vendor assigned for this service
+      if (vendorService) {
+        const hasServiceVendor = Array.isArray(b.vendorAllocations) &&
+          b.vendorAllocations.some(a => (a.service || '').toLowerCase() === vendorService.toLowerCase() && a.status !== 'Rejected')
+
+        const hasActiveTaskForService = (vendorTasks || []).some(t =>
+          String(t.bookingId) === String(b.id) &&
+          (t.service || '').toLowerCase() === vendorService.toLowerCase() &&
+          t.status !== VENDOR_TASK_STATUS.REJECTED
+        )
+
+        return !hasServiceVendor && !hasActiveTaskForService
+      }
+
+      // If no vendor service is specified yet, show bookings that have 0 allocations or unassigned slots
+      return !b.vendorAllocations || b.vendorAllocations.length === 0
+    }).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+  }, [bookings, selectedVendor, form.service, vendorTasks])
 
   // Lock background page scroll while the Assign/Reassign modal is open so the
   // mouse wheel scrolls the form itself instead of the admin page behind it.
@@ -120,30 +208,46 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
 
   const handleVendorChange = (vendorId) => {
     const selected = activeVendors.find(v => String(v.id) === String(vendorId))
-    setForm(prev => ({
-      ...prev,
-      vendorId,
-      service: selected?.service || prev.service
-    }))
-  }
+    const newService = selected?.service || form.service
 
-  const handlePrefillCustomer = (userId) => {
-    const user = users.find(u => String(u.id) === String(userId))
-    if (!user) return
-    setForm(prev => ({
-      ...prev,
-      customerName: user.name || '',
-      customerEmail: user.email || '',
-      customerPhone: user.phone || ''
-    }))
+    setForm(prev => {
+      // Check if current selected booking matches the new vendor's service category
+      const currentBooking = (bookings || []).find(b => String(b.id) === String(prev.bookingId))
+      const bookingStillValid = currentBooking &&
+        isServiceMatching(currentBooking.service, currentBooking.category, currentBooking.notes || currentBooking.customSummary, newService)
+
+      return {
+        ...prev,
+        vendorId,
+        service: newService,
+        bookingId: bookingStillValid ? prev.bookingId : ''
+      }
+    })
   }
 
   const handlePrefillBooking = (bookingId) => {
-    const booking = assignableBookings.find(b => String(b.id) === String(bookingId))
+    if (!bookingId) {
+      setForm(prev => ({
+        ...prev,
+        bookingId: '',
+        customerName: '',
+        customerEmail: '',
+        customerPhone: '',
+        venue: '',
+        guests: '',
+        eventDate: '',
+        eventTime: '',
+        requirements: ''
+      }))
+      return
+    }
+
+    const booking = (bookings || []).find(b => String(b.id) === String(bookingId))
     if (!booking) {
       setForm(prev => ({ ...prev, bookingId: '' }))
       return
     }
+
     setForm(prev => ({
       ...prev,
       bookingId: booking.id,
@@ -151,8 +255,9 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
       customerEmail: booking.email || prev.customerEmail,
       customerPhone: booking.phone || prev.customerPhone,
       venue: booking.venue || booking.address || prev.venue,
-      guests: booking.guests || prev.guests,
+      guests: booking.guests ? String(booking.guests) : prev.guests,
       eventDate: booking.date || prev.eventDate,
+      eventTime: booking.time || booking.eventTime || prev.eventTime,
       requirements: booking.customSummary || booking.notes || prev.requirements
     }))
   }
@@ -164,17 +269,27 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
       showNotification?.('Please select a registered vendor.')
       return
     }
-    if (!form.bookingId) {
-      showNotification?.('Please select the customer booking this task belongs to.')
-      return
+
+    // If a booking is selected, prevent duplicate assignments of the same vendor to the same service in this booking
+    if (form.bookingId) {
+      const isDuplicateTask = (vendorTasks || []).some(
+        t => String(t.bookingId) === String(form.bookingId) &&
+             String(t.vendorId) === String(vendor.id) &&
+             (t.service || '').toLowerCase() === (form.service || '').toLowerCase() &&
+             t.status !== VENDOR_TASK_STATUS.REJECTED
+      )
+      const targetBooking = (bookings || []).find(b => String(b.id) === String(form.bookingId))
+      const isDuplicateAllocation = (targetBooking?.vendorAllocations || []).some(
+        a => String(a.vendorId) === String(vendor.id) &&
+             (a.service || '').toLowerCase() === (form.service || '').toLowerCase()
+      )
+
+      if (isDuplicateTask || isDuplicateAllocation) {
+        showNotification?.(`${vendor.name || 'This vendor'} is already assigned to ${form.service} for this booking.`)
+        return
+      }
     }
-    const existingActiveTask = (vendorTasks || []).find(
-      t => String(t.bookingId) === String(form.bookingId) && t.status !== VENDOR_TASK_STATUS.REJECTED
-    )
-    if (existingActiveTask) {
-      showNotification?.('This booking already has an active vendor task. Reject it before assigning a new one.')
-      return
-    }
+
     if (!form.customerName.trim() || !form.service.trim() || !form.eventDate) {
       showNotification?.('Customer name, service, and date are required.')
       return
@@ -182,7 +297,7 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
 
     setSaving(true)
     const newTask = {
-      bookingId: form.bookingId,
+      bookingId: form.bookingId || null,
       vendorId: vendor.id,
       vendorName: vendor.name || vendor.businessName,
       vendorEmail: vendor.email || '',
@@ -250,16 +365,18 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
           vendorEmail: task.vendorEmail,
           vendorPhone: task.vendorPhone || '',
           service: task.service,
-          requirements: task.vendorResponseNote || task.requirements || '',
+          requirements: task.requirements || targetBooking.notes || targetBooking.customSummary || 'Standard wedding service',
+          vendorResponseNote: task.vendorResponseNote || '',
           status: 'Accepted',
           assignedAt: task.createdAt,
           respondedAt: task.respondedAt || new Date().toISOString(),
           payout: {
-            totalCost: Number(task.advanceAmount) || 0,
+            totalCost: Number(task.totalCost) || (Number(task.advanceAmount || 0) + Number(task.remainingAmount || 0)) || Number(task.advanceAmount) || 0,
             advanceAmount: Number(task.advanceAmount) || 0,
-            remainingAmount: 0,
-            payoutStatus: 'Advance Paid',
-            advancePaidAt: new Date().toISOString()
+            remainingAmount: Number(task.remainingAmount) || (Number(task.totalCost || 0) > Number(task.advanceAmount || 0) ? Number(task.totalCost) - Number(task.advanceAmount) : 0),
+            payoutStatus: task.payoutStatus || 'Pending',
+            advancePaidAt: null,
+            fullyPaidAt: null
           }
         }
         const remainingAllocations = Array.isArray(targetBooking.vendorAllocations)
@@ -267,8 +384,10 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
           : []
         const updatedBooking = {
           ...targetBooking,
-          bookingStatus: 'confirmed',
-          statusUpdatedAt: new Date().toISOString(),
+          bookingStatus: targetBooking.bookingStatus === 'confirmed' ? 'confirmed' : 'confirmed',
+          statusUpdatedAt: targetBooking.bookingStatus === 'confirmed'
+            ? (targetBooking.statusUpdatedAt || new Date().toISOString())
+            : new Date().toISOString(),
           vendorAllocations: [...remainingAllocations, newAllocation]
         }
         try {
@@ -554,9 +673,11 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
                         {task.vendorResponse === 'NO' && (
                           <span className="dw-pill pill-rejected">NO</span>
                         )}
-                        {task.vendorResponse === 'YES' && Number(task.advanceAmount) > 0 && (
+                        {task.vendorResponse === 'YES' && (Number(task.totalCost) > 0 || Number(task.advanceAmount) > 0) && (
                           <div className="dw-client-sub" style={{ marginTop: 4 }}>
+                            {Number(task.totalCost) > 0 && <span>Total: <strong>₹{Number(task.totalCost).toLocaleString('en-IN')}</strong> &bull; </span>}
                             Advance: <strong>₹{Number(task.advanceAmount).toLocaleString('en-IN')}</strong>
+                            {Number(task.remainingAmount) > 0 && <span> &bull; Due: <strong>₹{Number(task.remainingAmount).toLocaleString('en-IN')}</strong></span>}
                           </div>
                         )}
                         {task.vendorResponseNote && (
@@ -648,39 +769,25 @@ function VendorTaskAssignment({ vendors = [], users = [], bookings = [], setBook
 
                 <div className="dw-modal-section">
                   <div className="dw-modal-section-title">Customer booking</div>
-                  <label className="dw-form-label">Booking to assign this vendor to *</label>
+                  <label className="dw-form-label">Booking to assign this vendor to (optional)</label>
                   <select
                     className="dw-form-control"
-                    required
                     value={form.bookingId}
                     onChange={(e) => handlePrefillBooking(e.target.value)}
                   >
-                    <option value="">Select booking</option>
+                    <option value="">Select booking (Optional / Manual task)</option>
                     {assignableBookings.map(b => (
                       <option key={b.id} value={b.id}>
-                        {b.name} — {b.service} — {b.date || 'date TBD'} (#{String(b.id).slice(-6)})
+                        {b.name} — {b.service} — {b.date || 'date TBD'} [{b.bookingStatus === 'confirmed' ? 'Confirmed' : 'Pending'}] (#{String(b.id).slice(-6)})
                       </option>
                     ))}
                   </select>
                   {assignableBookings.length === 0 && (
                     <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
-                      No bookings are currently waiting on a vendor. Bookings already confirmed or rejected don't need one.
+                      {selectedVendor
+                        ? `No eligible unassigned bookings found matching ${selectedVendor.service}. You can still enter details manually below.`
+                        : 'No unassigned bookings available. You can enter details manually below.'}
                     </p>
-                  )}
-                  {users.length > 0 && (
-                    <div style={{ margin: '12px 0' }}>
-                      <label className="dw-form-label">Or prefill from registered client (optional)</label>
-                      <select
-                        className="dw-form-control"
-                        defaultValue=""
-                        onChange={(e) => handlePrefillCustomer(e.target.value)}
-                      >
-                        <option value="">Enter manually</option>
-                        {users.map(u => (
-                          <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                        ))}
-                      </select>
-                    </div>
                   )}
                   <div className="dw-modal-grid">
                     <div>

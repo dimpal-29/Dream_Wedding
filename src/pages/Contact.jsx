@@ -92,10 +92,6 @@ function Contact() {
                 <strong>Email</strong>
                 <p>info@dreamwedding.com</p>
               </div>
-              <div className="info-item">
-                <strong>Hours</strong>
-                <p>Mon - Fri: 9:00 AM - 6:00 PM<br />Sat: 10:00 AM - 4:00 PM</p>
-              </div>
             </div>
             <form className="contact-form" onSubmit={handleSubmit}>
               <div className="form-group">

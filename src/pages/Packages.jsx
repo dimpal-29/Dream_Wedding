@@ -21,7 +21,7 @@ function Packages() {
               <div className="package-header">
                 <h3>Essential</h3>
                 <p className="package-desc">Perfect for intimate gatherings</p>
-                <div className="package-price">$2,499</div>
+                <div className="package-price">₹2,00,000</div>
                 <p className="package-note">Starting price</p>
               </div>
               <ul className="package-features">
@@ -40,7 +40,7 @@ function Packages() {
               <div className="package-header">
                 <h3>Premium</h3>
                 <p className="package-desc">Our most popular choice</p>
-                <div className="package-price">$4,999</div>
+                <div className="package-price">₹4,00,000</div>
                 <p className="package-note">Starting price</p>
               </div>
               <ul className="package-features">
@@ -59,7 +59,7 @@ function Packages() {
               <div className="package-header">
                 <h3>Luxury</h3>
                 <p className="package-desc">The ultimate experience</p>
-                <div className="package-price">$8,999</div>
+                <div className="package-price">₹7,50,000</div>
                 <p className="package-note">Starting price</p>
               </div>
               <ul className="package-features">

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { vendorAuthApi } from './services/api'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import Chatbot from './components/Chatbot'
 import Home from './pages/Home'
 import About from './pages/About'
 import Services from './pages/Services'
@@ -175,6 +176,7 @@ function AppContent() {
         <Route path="/vendor-portal" element={<Navigate to="/vendor/login" replace />} />
         <Route path="/vendor-login" element={<Navigate to="/vendor/login" replace />} />
       </Routes>
+      {!isAdmin && !isVendorAuth && <Chatbot />}
       {!isAdmin && !isVendorAuth && <Footer />}
     </div>
   )
