@@ -30,7 +30,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 
 // 2. Restrict CORS to frontend origins (localhost:5173, 127.0.0.1:5173, and optional env override)
 const allowedOrigins = [
