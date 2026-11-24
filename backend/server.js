@@ -57,7 +57,7 @@ app.use(cors({
 app.use(express.json({ limit: '25kb' }));
 
 // 4. Initialize Gemini API instance securely using the environment variable
-const apiKey = "AQ.Ab8RN6KYS42smJfRGGEFe6KggMSDWIbNdk7UaZc7i0MqOcRBuQ"
+const apiKey = process.env.GEMINI_API_KEY;
 let ai = null;
 
 if (apiKey) {
@@ -1038,10 +1038,10 @@ The JSON must follow this exact structure:
     // Ensure valid defaults
     const checklist = Array.isArray(parsed.checklist)
       ? parsed.checklist.map((item, idx) => ({
-          id: item.id || `chk_${idx + 1}`,
-          text: typeof item === 'string' ? item : (item.text || String(item)),
-          completed: false
-        }))
+        id: item.id || `chk_${idx + 1}`,
+        text: typeof item === 'string' ? item : (item.text || String(item)),
+        completed: false
+      }))
       : [];
 
     const materials = Array.isArray(parsed.materials) ? parsed.materials.map(String) : [];
@@ -1166,11 +1166,11 @@ app.put('/api/vendor/task-checklist/update', (req, res) => {
 });
 
 // Register CRUD for all collections
-registerCrudRoutes('users',       'usr_');
-registerCrudRoutes('bookings',    'bk_');
-registerCrudRoutes('contacts',    'ct_');
-registerCrudRoutes('reviews',     'rv_');
-registerCrudRoutes('vendors',     'vnd_');
+registerCrudRoutes('users', 'usr_');
+registerCrudRoutes('bookings', 'bk_');
+registerCrudRoutes('contacts', 'ct_');
+registerCrudRoutes('reviews', 'rv_');
+registerCrudRoutes('vendors', 'vnd_');
 registerCrudRoutes('vendorTasks', 'vt_');
 
 console.log('✅ CRUD routes registered for: users, bookings, contacts, reviews, vendors, vendorTasks');

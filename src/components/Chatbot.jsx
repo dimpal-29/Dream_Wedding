@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import '../chatbot.css';
 
-const BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'https://dream-wedding-ai-backend.onrender.com';
 
 const INITIAL_MESSAGE = {
   id: 'welcome-1',
@@ -58,14 +58,14 @@ export default function Chatbot() {
     setErrorMessage(null);
     setIsLoading(true);
 
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/chat`, {
+    const response = await fetch(`${BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ message: textToSend })
-      });
+      });   try {
+   
 
       const data = await response.json();
 
@@ -191,13 +191,12 @@ export default function Chatbot() {
                   </div>
                 )}
                 <div
-                  className={`dw-chat-bubble ${
-                    msg.sender === 'user'
+                  className={`dw-chat-bubble ${msg.sender === 'user'
                       ? 'dw-chat-bubble-user'
                       : msg.isError
-                      ? 'dw-chat-bubble-error'
-                      : 'dw-chat-bubble-bot'
-                  }`}
+                        ? 'dw-chat-bubble-error'
+                        : 'dw-chat-bubble-bot'
+                    }`}
                 >
                   <div className="dw-chat-bubble-text">{msg.text}</div>
                   <div className="dw-chat-bubble-time">{msg.time}</div>
