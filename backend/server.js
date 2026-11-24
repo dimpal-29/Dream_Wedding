@@ -57,7 +57,7 @@ app.use(cors({
 app.use(express.json({ limit: '25kb' }));
 
 // 4. Initialize Gemini API instance securely using the environment variable
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = "AQ.Ab8RN6KYS42smJfRGGEFe6KggMSDWIbNdk7UaZc7i0MqOcRBuQ"
 let ai = null;
 
 if (apiKey) {
