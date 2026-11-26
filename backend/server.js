@@ -39,8 +39,8 @@ const allowedOrigins = [
   'http://localhost:5174',
   'http://127.0.0.1:5174',
   // ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
-   ...(process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((u) => u.trim()): [])
+  ...(process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map((u) => u.trim()) : [])
 ];
 
 app.use(cors({
@@ -60,10 +60,6 @@ app.use(express.json({ limit: '25kb' }));
 
 // 4. Initialize Gemini API instance securely using the environment variable
 const apiKey = process.env.GEMINI_API_KEY;
-<<<<<<< HEAD
-=======
-//  process.env.GEMINI_API_KEY;
->>>>>>> 555f3d7 (Use env for backend URL and Gemini key)
 let ai = null;
 
 if (apiKey) {
