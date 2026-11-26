@@ -6,7 +6,11 @@ import axios from 'axios'
 // Previously this pointed to a Render (json-server) deployment which would
 // reset/lose vendor data after the free-tier server went to sleep.
 // ─────────────────────────────────────────────────────────────────────────────
-const API_BASE_URL = 'http://localhost:5000/api';
+
+
+const BACKEND_ROOT = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:5000';
+const API_BASE_URL = `${BACKEND_ROOT}/api`;
+// const API_BASE_URL = 'http://localhost:5000/api';
 const API_TIMEOUT = 10000; // 10 seconds
 
 export const jsonServer = axios.create({

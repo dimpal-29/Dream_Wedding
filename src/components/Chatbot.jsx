@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import '../chatbot.css';
 
-const BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'https://dream-wedding-ai-backend.onrender.com';
+//const BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'https://dream-wedding-ai-backend.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:5000';
 
 const INITIAL_MESSAGE = {
   id: 'welcome-1',

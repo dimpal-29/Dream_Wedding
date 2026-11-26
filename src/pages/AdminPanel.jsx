@@ -799,7 +799,8 @@ function AdminPanel() {
         recentBookingDates
       }
 
-      const backendUrl = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:5000'
+      //const backendUrl = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:5000'
+      const backendUrl = (import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:5000')
       const res = await fetch(`${backendUrl}/api/admin/booking-summary`, {
         method: 'POST',
         headers: {
